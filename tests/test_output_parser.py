@@ -1,0 +1,223 @@
+"""Tests for langchain_arabic.output_parser module."""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from langchain_arabic.output_parser import ArabicTextOutputParser
+
+
+class TestArabicTextOutputParser:
+    def test_diacritics_only(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"تقنية": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        result = parser.parse("شركة تقنية")
+        assert result == "شركة تِقْنِيَة"
+
+    def test_numbers_only(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={},
+            convert_numbers=True,
+            language="ar",
+        )
+        result = parser.parse("العدد 5")
+        assert "خمسة" in result
+
+    def test_both_diacritics_and_numbers(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"شركة": "شَرِكَة"},
+            convert_numbers=True,
+            language="ar",
+        )
+        result = parser.parse("شركة رقم 5")
+        assert "شَرِكَة" in result
+        assert "5" not in result
+
+    def test_invoke_works(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"تقنية": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        result = parser.invoke("تقنية")
+        assert result == "تِقْنِيَة"
+
+    def test_type_property(self):
+        parser = ArabicTextOutputParser()
+        assert parser._type == "arabic_text"
+
+    def test_english_mode(self):
+        parser = ArabicTextOutputParser(
+            language="en",
+            convert_numbers=True,
+        )
+        result = parser.parse("the year 2030")
+        assert "two thousand and thirty" in result
+
+    def test_empty_input(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"a": "b"},
+            convert_numbers=True,
+        )
+        assert parser.parse("") == ""
+
+    def test_no_processing(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={},
+            convert_numbers=False,
+        )
+        text = "hello world 123"
+        assert parser.parse(text) == text
+
+    def test_number_contexts(self):
+        parser = ArabicTextOutputParser(
+            convert_numbers=True,
+            language="ar",
+            number_contexts={"percentage"},
+        )
+        result = parser.parse("95% من 500 عنصر")
+        assert "بالمائة" in result
+        # 500 should stay as digits (only percentage context enabled)
+        assert "500" in result
+
+
+# ---------------------------------------------------------------------------
+# Backend validation
+# ---------------------------------------------------------------------------
+
+
+class TestBackendValidation:
+    def test_invalid_backend_raises(self):
+        with pytest.raises(ValueError, match="Unknown backend"):
+            ArabicTextOutputParser(backend="invalid")
+
+    def test_invalid_catt_model_raises(self):
+        with pytest.raises(ValueError, match="Unknown catt_model"):
+            ArabicTextOutputParser(backend="catt", catt_model="invalid")
+
+    def test_dictionary_backend_is_default(self):
+        parser = ArabicTextOutputParser()
+        assert parser.backend == "dictionary"
+
+    def test_catt_model_ignored_for_dictionary(self):
+        # catt_model value doesn't matter when backend is dictionary
+        parser = ArabicTextOutputParser(backend="dictionary", catt_model="encoder_decoder")
+        result = parser.parse("hello")
+        assert result == "hello"
+
+
+# ---------------------------------------------------------------------------
+# CATT backend integration (mocked)
+# ---------------------------------------------------------------------------
+
+
+class TestCATTBackendParser:
+    @pytest.fixture()
+    def mock_catt(self):
+        """Mock _get_catt_backend to return a controllable fake."""
+        mock_backend = MagicMock()
+        mock_backend.tashkeel.return_value = "نَصٌّ مُشَكَّلٌ"
+        with patch(
+            "langchain_arabic.output_parser._get_catt_backend",
+            return_value=mock_backend,
+        ) as mock_get:
+            yield mock_backend
+
+    def test_catt_backend_calls_tashkeel(self, mock_catt):
+        parser = ArabicTextOutputParser(backend="catt", convert_numbers=False)
+        result = parser.parse("نص عربي")
+        mock_catt.tashkeel.assert_called_once_with("نص عربي")
+        assert result == "نَصٌّ مُشَكَّلٌ"
+
+    def test_hybrid_mode_dictionary_overrides_after_catt(self, mock_catt):
+        """Dictionary overrides are applied AFTER CATT auto-diacritization."""
+        mock_catt.tashkeel.return_value = "شَرِكَة تَقنِيَة"
+        parser = ArabicTextOutputParser(
+            backend="catt",
+            diacritics_map={"تَقنِيَة": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        result = parser.parse("شركة تقنية")
+        # CATT was called first
+        mock_catt.tashkeel.assert_called_once_with("شركة تقنية")
+        # Dictionary override replaced CATT's diacritization
+        assert "تِقْنِيَة" in result
+
+    def test_catt_with_numbers(self, mock_catt):
+        mock_catt.tashkeel.return_value = "العَدَد 5"
+        parser = ArabicTextOutputParser(
+            backend="catt",
+            convert_numbers=True,
+            language="ar",
+        )
+        result = parser.parse("العدد 5")
+        assert "5" not in result
+        assert "خمسة" in result
+
+    def test_catt_empty_input(self, mock_catt):
+        parser = ArabicTextOutputParser(backend="catt", convert_numbers=False)
+        assert parser.parse("") == ""
+        mock_catt.tashkeel.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Streaming buffering fix
+# ---------------------------------------------------------------------------
+
+
+class TestStreamingBuffering:
+    def test_transform_buffers_chunks(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"تقنية": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        # Simulate LLM streaming "تقنية" as two chunks
+        chunks = iter(["تقن", "ية"])
+        results = list(parser._transform(chunks))
+        assert len(results) == 1
+        assert results[0] == "تِقْنِيَة"
+
+    def test_transform_empty_input(self):
+        parser = ArabicTextOutputParser(convert_numbers=False)
+        results = list(parser._transform(iter([])))
+        assert results == []
+
+    def test_transform_single_chunk(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map={"شركة": "شَرِكَة"},
+            convert_numbers=False,
+        )
+        results = list(parser._transform(iter(["شركة"])))
+        assert results == ["شَرِكَة"]
+
+    def test_transform_with_message_objects(self):
+        """Chunks with a .content attribute are handled correctly."""
+
+        class FakeMessage:
+            def __init__(self, content: str) -> None:
+                self.content = content
+
+        parser = ArabicTextOutputParser(
+            diacritics_map={"تقنية": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        chunks = iter([FakeMessage("تقن"), FakeMessage("ية")])
+        results = list(parser._transform(chunks))
+        assert len(results) == 1
+        assert results[0] == "تِقْنِيَة"
+
+    def test_transform_many_small_chunks(self):
+        """Multi-word diacritics match after buffering many tiny chunks."""
+        parser = ArabicTextOutputParser(
+            diacritics_map={"علم الحاسوب": "عِلْمُ الحَاسُوبِ"},
+            convert_numbers=False,
+        )
+        # Each character arrives separately
+        text = "علم الحاسوب"
+        chunks = iter(list(text))
+        results = list(parser._transform(chunks))
+        assert len(results) == 1
+        assert results[0] == "عِلْمُ الحَاسُوبِ"

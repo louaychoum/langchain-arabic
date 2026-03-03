@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langchain-arabic"
+dynamic = ["version"]
+description = "Arabic text post-processing for LLM outputs — diacritics restoration, number-to-word conversion, and LangChain integration"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "Louay Alshoum" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Linguistic",
+    "Natural Language :: Arabic",
+]
+dependencies = [
+    "langchain-core>=0.2.0",
+    "num2words>=0.5.14",
+]
+
+[project.optional-dependencies]
+catt = ["catt-tashkeel>=0.1.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.23.0", "ruff>=0.4.0"]
+
+[project.urls]
+Repository = "https://github.com/louaychoum/langchain-arabic"
+
+[tool.setuptools.dynamic]
+version = {attr = "langchain_arabic._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
