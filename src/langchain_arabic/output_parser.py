@@ -15,18 +15,17 @@ Supports two diacritization backends:
 
 from __future__ import annotations
 
+import threading
 from typing import Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
 
 from langchain_core.output_parsers import BaseTransformOutputParser
-from pydantic import Field, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 
 from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
 from langchain_arabic.numbers import convert_numbers_in_text
 
-# ---------------------------------------------------------------------------
-# Module-level CATT cache — shares loaded model across parser instances
-# ---------------------------------------------------------------------------
 _CATT_CACHE: Dict[str, Any] = {}
+_CATT_LOCK = threading.Lock()
 
 _VALID_BACKENDS = {"dictionary", "catt"}
 _VALID_CATT_MODELS = {"encoder_only", "encoder_decoder"}
@@ -35,9 +34,11 @@ _VALID_CATT_MODELS = {"encoder_only", "encoder_decoder"}
 def _get_catt_backend(model: str) -> Any:
     """Return a cached :class:`CATTBackend` for *model*."""
     if model not in _CATT_CACHE:
-        from langchain_arabic.catt_backend import CATTBackend
+        with _CATT_LOCK:
+            if model not in _CATT_CACHE:
+                from langchain_arabic.catt_backend import CATTBackend
 
-        _CATT_CACHE[model] = CATTBackend(model=model)
+                _CATT_CACHE[model] = CATTBackend(model=model)
     return _CATT_CACHE[model]
 
 
@@ -81,8 +82,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
     language: str = "ar"
     number_contexts: Optional[Set[str]] = None
 
-    # Internal resolved map — set by validator, not by user
-    _resolved_map: Dict[str, str] = {}
+    _resolved_map: Dict[str, str] = PrivateAttr(default_factory=dict)
 
     @model_validator(mode="after")
     def _validate_config(self) -> ArabicTextOutputParser:
@@ -102,10 +102,6 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         else:
             self._resolved_map = self.diacritics_map
         return self
-
-    # ------------------------------------------------------------------
-    # Convenience constructors
-    # ------------------------------------------------------------------
 
     @classmethod
     def for_tts_fixes(
@@ -140,10 +136,6 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             **kwargs,
         )
 
-    # ------------------------------------------------------------------
-    # Core processing
-    # ------------------------------------------------------------------
-
     def parse(self, text: str) -> str:
         """Process a complete LLM output string."""
         if not text:
@@ -169,10 +161,6 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                     text, self.language, contexts=self.number_contexts
                 )
         return text
-
-    # ------------------------------------------------------------------
-    # Streaming: buffer all chunks, then process full text
-    # ------------------------------------------------------------------
 
     def _transform(
         self,

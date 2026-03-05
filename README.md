@@ -194,14 +194,14 @@ Requires `pip install langchain-arabic[catt]`.
 
 ## Examples
 
-See the [`examples/`](examples/) directory for runnable scripts:
+See the [`examples/`](https://github.com/louaychoum/langchain-arabic/tree/main/examples) directory for runnable scripts:
 
-- [`quickstart.py`](examples/quickstart.py) — Dictionary mode, CATT mode, hybrid mode, number conversion
-- [`langchain_chain.py`](examples/langchain_chain.py) — Full LangChain LCEL chain integration
+- [`quickstart.py`](https://github.com/louaychoum/langchain-arabic/blob/main/examples/quickstart.py) — Dictionary mode, CATT mode, hybrid mode, number conversion
+- [`langchain_chain.py`](https://github.com/louaychoum/langchain-arabic/blob/main/examples/langchain_chain.py) — Full LangChain LCEL chain integration
 
 ## Benchmarks
 
-See [`benchmarks/`](benchmarks/) for DER/WER evaluation of different diacritization modes.
+See [`benchmarks/`](https://github.com/louaychoum/langchain-arabic/tree/main/benchmarks) for DER/WER evaluation of different diacritization modes.
 
 ## Development
 

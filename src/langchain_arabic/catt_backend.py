@@ -16,9 +16,6 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Lazy import — catt_tashkeel is an optional dependency
-# ---------------------------------------------------------------------------
 _CATT_IMPORT_ERROR: Optional[ImportError] = None
 
 try:

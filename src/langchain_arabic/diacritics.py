@@ -10,11 +10,8 @@ import os
 import re
 from typing import Dict, Union
 
-_ARROW_PATTERN = re.compile(r"^-\s+(.+?)\s*→\s*(.+?)\s*$", re.MULTILINE)
-
 
 def _has_arabic(text: str) -> bool:
-    """Return True if *text* contains at least one Arabic character."""
     return bool(re.search(r"[\u0600-\u06FF]", text))
 
 

@@ -11,8 +11,6 @@ from typing import List, Set
 
 from num2words import num2words
 
-# Ordered patterns — first match wins.  Each tuple:
-#   (compiled regex, context label, group index for the number)
 _PATTERNS: List[tuple] = [
     # Percentage: 95% or 95 %
     (re.compile(r"(\d[\d,]*\.?\d*)\s*[%٪]"), "percentage", 1),
@@ -26,18 +24,12 @@ _PATTERNS: List[tuple] = [
     (re.compile(r"(?:920|800)\d{6}"), "phone", 0),
 ]
 
-# Standalone number (fallback): matches any digit sequence
 _STANDALONE_NUMBER = re.compile(r"\d[\d,]*\.?\d*|\d")
-
-
-def _clean_number(raw: str) -> str:
-    """Strip commas from a raw number string."""
-    return raw.replace(",", "")
 
 
 def _convert_single(number_str: str, context: str, language: str) -> str:
     """Convert a single number string to words based on context."""
-    cleaned = _clean_number(number_str)
+    cleaned = number_str.replace(",", "")
 
     if context == "phone":
         return " ".join(
@@ -51,7 +43,6 @@ def _convert_single(number_str: str, context: str, language: str) -> str:
 
     words = num2words(value, lang=language)
 
-    # Normalize num2words Arabic output: collapse double spaces
     words = re.sub(r" {2,}", " ", words)
 
     if context == "percentage":
@@ -90,7 +81,6 @@ def convert_numbers_in_text(
 
     all_contexts = contexts is None
 
-    # Pass 1: replace contextual patterns (percentage, currency, phone)
     for pattern, ctx, group_idx in _PATTERNS:
         if not all_contexts and ctx not in contexts:
             continue
@@ -113,7 +103,6 @@ def convert_numbers_in_text(
 
         text = pattern.sub(_replacer, text)
 
-    # Pass 2: replace remaining standalone numbers
     if all_contexts or "plain" in contexts:
 
         def _plain_replacer(m: re.Match) -> str:

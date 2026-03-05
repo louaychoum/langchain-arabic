@@ -74,11 +74,6 @@ DICTIONARY = {
 _DIACRITICS = set("\u064B\u064C\u064D\u064E\u064F\u0650\u0651\u0652\u0670")
 
 
-def _strip_diacritics(text: str) -> str:
-    """Remove all Arabic diacritical marks from text."""
-    return "".join(c for c in text if c not in _DIACRITICS)
-
-
 def _get_diacritic_pairs(text: str) -> list[tuple[str, str]]:
     """Return (base_char, diacritic_or_empty) pairs for DER calculation."""
     pairs: list[tuple[str, str]] = []
