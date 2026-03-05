@@ -72,6 +72,22 @@ class TestArabicTextOutputParser:
         text = "hello world 123"
         assert parser.parse(text) == text
 
+    def test_string_diacritics_map_auto_parsed(self):
+        """String input for diacritics_map is auto-coerced via parse_diacritics_map."""
+        parser = ArabicTextOutputParser(
+            diacritics_map="تقنية -> تِقْنِيَة\nشركة -> شَرِكَة",
+            convert_numbers=False,
+        )
+        result = parser.parse("شركة تقنية")
+        assert result == "شَرِكَة تِقْنِيَة"
+
+    def test_string_diacritics_map_colon_format(self):
+        parser = ArabicTextOutputParser(
+            diacritics_map="تقنية: تِقْنِيَة",
+            convert_numbers=False,
+        )
+        assert parser.parse("تقنية") == "تِقْنِيَة"
+
     def test_number_contexts(self):
         parser = ArabicTextOutputParser(
             convert_numbers=True,
@@ -147,15 +163,18 @@ class TestCATTBackendParser:
         assert "تِقْنِيَة" in result
 
     def test_catt_with_numbers(self, mock_catt):
-        mock_catt.tashkeel.return_value = "العَدَد 5"
+        # With CATT: numbers convert FIRST, then CATT diacritizes the result
+        mock_catt.tashkeel.return_value = "العَدَد خَمْسَة"
         parser = ArabicTextOutputParser(
             backend="catt",
             convert_numbers=True,
             language="ar",
         )
         result = parser.parse("العدد 5")
+        # CATT receives text with numbers already converted to words
+        mock_catt.tashkeel.assert_called_once_with("العدد خمسة")
         assert "5" not in result
-        assert "خمسة" in result
+        assert "خَمْسَة" in result
 
     def test_catt_empty_input(self, mock_catt):
         parser = ArabicTextOutputParser(backend="catt", convert_numbers=False)
@@ -221,3 +240,42 @@ class TestStreamingBuffering:
         results = list(parser._transform(chunks))
         assert len(results) == 1
         assert results[0] == "عِلْمُ الحَاسُوبِ"
+
+
+# ---------------------------------------------------------------------------
+# for_tts_fixes convenience constructor
+# ---------------------------------------------------------------------------
+
+
+class TestForTtsFixes:
+    def test_dict_input(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(
+            fixes={"عداد": "عَدَّاد"},
+        )
+        assert parser.backend == "dictionary"
+        assert parser.parse("عداد المياه") == "عَدَّاد المياه"
+
+    def test_string_input(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(
+            fixes="عداد -> عَدَّاد\nيفضل -> يُفَضَّل",
+        )
+        assert parser.parse("يفضل عداد") == "يُفَضَّل عَدَّاد"
+
+    def test_numbers_enabled_by_default(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(fixes={})
+        assert parser.convert_numbers is True
+        result = parser.parse("العدد 5")
+        assert "خمسة" in result
+
+    def test_numbers_disabled(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(
+            fixes={}, convert_numbers=False,
+        )
+        assert parser.parse("العدد 5") == "العدد 5"
+
+    def test_language_passthrough(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(
+            fixes={}, language="en",
+        )
+        result = parser.parse("the year 2030")
+        assert "two thousand and thirty" in result

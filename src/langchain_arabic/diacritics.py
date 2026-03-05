@@ -13,6 +13,48 @@ from typing import Dict, Union
 _ARROW_PATTERN = re.compile(r"^-\s+(.+?)\s*→\s*(.+?)\s*$", re.MULTILINE)
 
 
+def _has_arabic(text: str) -> bool:
+    """Return True if *text* contains at least one Arabic character."""
+    return bool(re.search(r"[\u0600-\u06FF]", text))
+
+
+_FORMAT_PATTERNS = [
+    # Most specific first — Unicode arrow (current format)
+    re.compile(r"^-?\s*(.+?)\s*→\s*(.+?)\s*$", re.MULTILINE),
+    # ASCII arrow
+    re.compile(r"^-?\s*(.+?)\s*->\s*(.+?)\s*$", re.MULTILINE),
+    # Tab-separated (unambiguous — tabs rarely appear elsewhere)
+    re.compile(r"^-?\s*(.+?)\t(.+?)\s*$", re.MULTILINE),
+    # Colon (most ambiguous — tried last, both sides must be Arabic)
+    re.compile(r"^-?\s*(.+?)\s*:\s*(.+?)\s*$", re.MULTILINE),
+]
+
+
+def _try_parse_with_patterns(text: str) -> Dict[str, str]:
+    """Auto-detect delimiter format and extract diacritics mappings.
+
+    Tries each format pattern in order of specificity (most specific first).
+    Returns results from the first format that yields at least one valid
+    mapping where both sides contain Arabic and plain != diacritized.
+    """
+    for pattern in _FORMAT_PATTERNS:
+        mappings: Dict[str, str] = {}
+        for match in pattern.finditer(text):
+            plain = match.group(1).strip()
+            diacritized = match.group(2).strip()
+            if (
+                plain
+                and diacritized
+                and plain != diacritized
+                and _has_arabic(plain)
+                and _has_arabic(diacritized)
+            ):
+                mappings[plain] = diacritized
+        if mappings:
+            return mappings
+    return {}
+
+
 def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
     """Build a plain → diacritized mapping from *source*.
 
@@ -21,7 +63,8 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
     source
         - **dict**: returned as-is (identity shortcut).
         - **str that is an existing file path**: read the file, then parse.
-        - **str (markdown/text)**: parse ``- PLAIN → DIACRITIZED`` lines.
+        - **str (markdown/text)**: auto-detects format and parses pairs.
+          Supported formats: ``→``, ``->``, ``:``, tab-separated.
 
     Returns
     -------
@@ -36,12 +79,18 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
         with open(source, encoding="utf-8") as fh:
             text = fh.read()
 
-    diacritics_map: Dict[str, str] = {}
-    for match in _ARROW_PATTERN.finditer(text):
-        plain = match.group(1).strip()
-        diacritized = match.group(2).strip()
-        if plain and diacritized and plain != diacritized:
-            diacritics_map[plain] = diacritized
+    diacritics_map = _try_parse_with_patterns(text)
+
+    if not diacritics_map and _has_arabic(text):
+        import warnings
+        warnings.warn(
+            f"No diacritics mappings found in input ({len(text)} chars, "
+            f"contains Arabic text). Supported formats: "
+            f"'PLAIN → DIACRITIZED', 'PLAIN -> DIACRITIZED', "
+            f"'PLAIN: DIACRITIZED', or tab-separated.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     return diacritics_map
 

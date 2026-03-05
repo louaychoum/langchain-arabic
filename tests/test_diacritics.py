@@ -80,6 +80,56 @@ class TestParseDiacriticsMap:
 
 
 # ---------------------------------------------------------------------------
+# Multi-format auto-detection
+# ---------------------------------------------------------------------------
+
+
+class TestMultiFormatParsing:
+    def test_ascii_arrow_format(self):
+        text = "تقنية -> تِقْنِيَة\nشركة -> شَرِكَة"
+        result = parse_diacritics_map(text)
+        assert result["تقنية"] == "تِقْنِيَة"
+        assert result["شركة"] == "شَرِكَة"
+
+    def test_ascii_arrow_with_bullet(self):
+        text = "- تقنية -> تِقْنِيَة\n- شركة -> شَرِكَة"
+        result = parse_diacritics_map(text)
+        assert len(result) == 2
+
+    def test_colon_format(self):
+        text = "تقنية: تِقْنِيَة\nشركة: شَرِكَة"
+        result = parse_diacritics_map(text)
+        assert result["تقنية"] == "تِقْنِيَة"
+
+    def test_tab_format(self):
+        text = "تقنية\tتِقْنِيَة\nشركة\tشَرِكَة"
+        result = parse_diacritics_map(text)
+        assert result["تقنية"] == "تِقْنِيَة"
+
+    def test_english_colon_not_matched(self):
+        text = "## Section: Title\nSome english text"
+        result = parse_diacritics_map(text)
+        assert result == {}
+
+    def test_rejects_non_arabic_pairs(self):
+        text = "hello -> world\nfoo -> bar"
+        result = parse_diacritics_map(text)
+        assert result == {}
+
+    def test_unicode_arrow_takes_priority(self):
+        """Mixed formats: unicode arrow should win (more specific)."""
+        text = "- تقنية → تِقْنِيَة\nشركة: شَرِكَة"
+        result = parse_diacritics_map(text)
+        # Unicode arrow pattern matches first, returns its results
+        assert "تقنية" in result
+
+    def test_warning_on_arabic_text_no_mappings(self):
+        """Arabic text with unsupported format triggers a warning."""
+        with pytest.warns(UserWarning, match="No diacritics mappings found"):
+            parse_diacritics_map("تقنية = تِقْنِيَة")
+
+
+# ---------------------------------------------------------------------------
 # apply_diacritics
 # ---------------------------------------------------------------------------
 

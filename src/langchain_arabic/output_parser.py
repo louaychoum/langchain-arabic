@@ -20,7 +20,7 @@ from typing import Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
 from langchain_core.output_parsers import BaseTransformOutputParser
 from pydantic import Field, model_validator
 
-from langchain_arabic.diacritics import apply_diacritics
+from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
 from langchain_arabic.numbers import convert_numbers_in_text
 
 # ---------------------------------------------------------------------------
@@ -76,10 +76,13 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
 
     backend: str = "dictionary"
     catt_model: str = "encoder_only"
-    diacritics_map: Dict[str, str] = Field(default_factory=dict)
+    diacritics_map: Union[str, Dict[str, str]] = Field(default_factory=dict)
     convert_numbers: bool = True
     language: str = "ar"
     number_contexts: Optional[Set[str]] = None
+
+    # Internal resolved map — set by validator, not by user
+    _resolved_map: Dict[str, str] = {}
 
     @model_validator(mode="after")
     def _validate_config(self) -> ArabicTextOutputParser:
@@ -93,7 +96,49 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 f"Unknown catt_model {self.catt_model!r}. "
                 f"Choose from: {sorted(_VALID_CATT_MODELS)}"
             )
+        # Coerce string/path → dict via auto-detection
+        if isinstance(self.diacritics_map, str):
+            self._resolved_map = parse_diacritics_map(self.diacritics_map)
+        else:
+            self._resolved_map = self.diacritics_map
         return self
+
+    # ------------------------------------------------------------------
+    # Convenience constructors
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def for_tts_fixes(
+        cls,
+        fixes: Union[str, Dict[str, str]],
+        convert_numbers: bool = True,
+        language: str = "ar",
+        **kwargs: Any,
+    ) -> ArabicTextOutputParser:
+        """Create a parser that only fixes specific mispronounced words.
+
+        Recommended for TTS pipelines where only a few words need
+        correction. No neural model is loaded — fast and lightweight.
+
+        Parameters
+        ----------
+        fixes
+            Dict, file path, or text with word mappings (any supported format).
+        convert_numbers
+            Whether to also convert digits to words.
+        language
+            ``"ar"`` or ``"en"``.
+        """
+        diacritics_map = (
+            parse_diacritics_map(fixes) if isinstance(fixes, str) else fixes
+        )
+        return cls(
+            backend="dictionary",
+            diacritics_map=diacritics_map,
+            convert_numbers=convert_numbers,
+            language=language,
+            **kwargs,
+        )
 
     # ------------------------------------------------------------------
     # Core processing
@@ -104,20 +149,25 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         if not text:
             return text
 
-        # Step 1: Diacritization
         if self.backend == "catt":
+            # With CATT: convert numbers FIRST so the Arabic words
+            # get diacritized too (CATT strips raw digits)
+            if self.convert_numbers:
+                text = convert_numbers_in_text(
+                    text, self.language, contexts=self.number_contexts
+                )
             text = _get_catt_backend(self.catt_model).tashkeel(text)
             # Dictionary overrides applied AFTER auto-diacritization
-            if self.diacritics_map:
-                text = apply_diacritics(text, self.diacritics_map)
-        elif self.diacritics_map:
-            text = apply_diacritics(text, self.diacritics_map)
-
-        # Step 2: Number conversion
-        if self.convert_numbers:
-            text = convert_numbers_in_text(
-                text, self.language, contexts=self.number_contexts
-            )
+            if self._resolved_map:
+                text = apply_diacritics(text, self._resolved_map)
+        else:
+            # With dictionary: diacritize first, then convert numbers
+            if self._resolved_map:
+                text = apply_diacritics(text, self._resolved_map)
+            if self.convert_numbers:
+                text = convert_numbers_in_text(
+                    text, self.language, contexts=self.number_contexts
+                )
         return text
 
     # ------------------------------------------------------------------
