@@ -279,3 +279,95 @@ class TestForTtsFixes:
         )
         result = parser.parse("the year 2030")
         assert "two thousand and thirty" in result
+
+    def test_dialect_passthrough(self):
+        parser = ArabicTextOutputParser.for_tts_fixes(
+            fixes={}, dialect="gulf",
+        )
+        assert parser.dialect == "gulf"
+
+
+# ---------------------------------------------------------------------------
+# Dialect integration
+# ---------------------------------------------------------------------------
+
+
+class TestDialectIntegration:
+    def test_dialect_default_is_msa(self):
+        parser = ArabicTextOutputParser()
+        assert parser.dialect == "msa"
+
+    def test_invalid_dialect_raises(self):
+        with pytest.raises(ValueError, match="Unsupported dialect"):
+            ArabicTextOutputParser(dialect="invalid")
+
+    def test_gulf_number_overrides_percentage(self):
+        parser = ArabicTextOutputParser(
+            dialect="gulf",
+            convert_numbers=True,
+            language="ar",
+            number_contexts={"percentage"},
+        )
+        result = parser.parse("النسبة 95%")
+        assert "بالمية" in result
+        assert "بالمائة" not in result
+
+    def test_msa_number_unchanged(self):
+        parser = ArabicTextOutputParser(
+            dialect="msa",
+            convert_numbers=True,
+            language="ar",
+            number_contexts={"percentage"},
+        )
+        result = parser.parse("النسبة 95%")
+        assert "بالمائة" in result
+
+    def test_gulf_with_dialect_keyed_diacritics_map(self):
+        parser = ArabicTextOutputParser(
+            dialect="gulf",
+            diacritics_map={
+                "msa": {"تقنية": "تِقْنِيَة"},
+                "gulf": {"تقنية": "تَقْنِيَّة"},
+            },
+            convert_numbers=False,
+        )
+        result = parser.parse("شركة تقنية")
+        assert "تَقْنِيَّة" in result
+
+    def test_msa_with_dialect_keyed_diacritics_map(self):
+        parser = ArabicTextOutputParser(
+            dialect="msa",
+            diacritics_map={
+                "msa": {"تقنية": "تِقْنِيَة"},
+                "gulf": {"تقنية": "تَقْنِيَّة"},
+            },
+            convert_numbers=False,
+        )
+        result = parser.parse("شركة تقنية")
+        assert "تِقْنِيَة" in result
+
+    def test_flat_map_with_gulf_dialect(self):
+        """Flat diacritics map works regardless of dialect setting."""
+        parser = ArabicTextOutputParser(
+            dialect="gulf",
+            diacritics_map={"تقنية": "تِقْنِيَة"},
+            convert_numbers=False,
+        )
+        result = parser.parse("تقنية")
+        assert result == "تِقْنِيَة"
+
+    def test_backward_compatible_default(self):
+        """Default dialect='msa' produces identical output to v0.2.0."""
+        parser_new = ArabicTextOutputParser(
+            dialect="msa",
+            diacritics_map={"شركة": "شَرِكَة"},
+            convert_numbers=True,
+            language="ar",
+        )
+        parser_old = ArabicTextOutputParser(
+            diacritics_map={"شركة": "شَرِكَة"},
+            convert_numbers=True,
+            language="ar",
+        )
+        text = "شركة رقم 100"
+        assert parser_new.parse(text) == parser_old.parse(text)

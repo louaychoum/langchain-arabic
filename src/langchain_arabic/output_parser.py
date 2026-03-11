@@ -22,6 +22,11 @@ from langchain_core.output_parsers import BaseTransformOutputParser
 from pydantic import Field, PrivateAttr, model_validator
 
 from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
+from langchain_arabic.dialects import (
+    SUPPORTED_DIALECTS,
+    apply_dialect_number_overrides,
+    resolve_dialect_diacritics_map,
+)
 from langchain_arabic.numbers import convert_numbers_in_text
 
 _CATT_CACHE: Dict[str, Any] = {}
@@ -63,10 +68,14 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         CATT model variant: ``"encoder_only"`` (faster) or
         ``"encoder_decoder"`` (more accurate).  Ignored when *backend*
         is ``"dictionary"``.
+    dialect
+        Target dialect: ``"msa"`` (default) or ``"gulf"``.  Affects
+        number phrasing and dialect-keyed diacritics map resolution.
     diacritics_map
-        Plain -> diacritized word mapping.  When *backend* is ``"catt"``,
-        these overrides are applied **after** auto-diacritization (useful
-        for proper nouns and brand names).
+        Plain -> diacritized word mapping.  Accepts a flat dict, a
+        dialect-keyed dict (``{"msa": {...}, "gulf": {...}}``), a file
+        path, or a text string.  When *backend* is ``"catt"``, overrides
+        are applied **after** auto-diacritization.
     convert_numbers
         Whether to convert digit sequences to words.
     language
@@ -77,7 +86,10 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
 
     backend: str = "dictionary"
     catt_model: str = "encoder_only"
-    diacritics_map: Union[str, Dict[str, str]] = Field(default_factory=dict)
+    dialect: str = "msa"
+    diacritics_map: Union[str, Dict[str, str], Dict[str, Dict[str, str]]] = Field(
+        default_factory=dict,
+    )
     convert_numbers: bool = True
     language: str = "ar"
     number_contexts: Optional[Set[str]] = None
@@ -96,11 +108,18 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 f"Unknown catt_model {self.catt_model!r}. "
                 f"Choose from: {sorted(_VALID_CATT_MODELS)}"
             )
+        if self.dialect not in SUPPORTED_DIALECTS:
+            raise ValueError(
+                f"Unsupported dialect {self.dialect!r}. "
+                f"Choose from: {sorted(SUPPORTED_DIALECTS)}"
+            )
         # Coerce string/path → dict via auto-detection
         if isinstance(self.diacritics_map, str):
             self._resolved_map = parse_diacritics_map(self.diacritics_map)
         else:
-            self._resolved_map = self.diacritics_map
+            self._resolved_map = resolve_dialect_diacritics_map(
+                self.diacritics_map, self.dialect,
+            )
         return self
 
     @classmethod
@@ -109,6 +128,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         fixes: Union[str, Dict[str, str]],
         convert_numbers: bool = True,
         language: str = "ar",
+        dialect: str = "msa",
         **kwargs: Any,
     ) -> ArabicTextOutputParser:
         """Create a parser that only fixes specific mispronounced words.
@@ -124,6 +144,8 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             Whether to also convert digits to words.
         language
             ``"ar"`` or ``"en"``.
+        dialect
+            Target dialect (``"msa"`` or ``"gulf"``).
         """
         diacritics_map = (
             parse_diacritics_map(fixes) if isinstance(fixes, str) else fixes
@@ -133,6 +155,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             diacritics_map=diacritics_map,
             convert_numbers=convert_numbers,
             language=language,
+            dialect=dialect,
             **kwargs,
         )
 
@@ -148,6 +171,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 text = convert_numbers_in_text(
                     text, self.language, contexts=self.number_contexts
                 )
+                text = apply_dialect_number_overrides(text, self.dialect)
             text = _get_catt_backend(self.catt_model).tashkeel(text)
             # Dictionary overrides applied AFTER auto-diacritization
             if self._resolved_map:
@@ -160,6 +184,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 text = convert_numbers_in_text(
                     text, self.language, contexts=self.number_contexts
                 )
+                text = apply_dialect_number_overrides(text, self.dialect)
         return text
 
     def _transform(

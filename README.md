@@ -120,6 +120,31 @@ convert_numbers_in_text("about 95%", language="en")
 # -> "about ninety-five percent"
 ```
 
+### Dialect Support
+
+Use `dialect="gulf"` for Gulf Arabic (Khaleeji) number phrasing and dialect-keyed diacritics maps:
+
+```python
+from langchain_arabic import ArabicTextOutputParser
+
+# Gulf dialect — numbers use Gulf phrasing
+parser = ArabicTextOutputParser(dialect="gulf", convert_numbers=True)
+parser.parse("النسبة 100%")
+# -> "النسبة مية بالمية" (not "مائة بالمائة")
+
+# Dialect-keyed diacritics maps — different vocalization per dialect
+parser = ArabicTextOutputParser(
+    dialect="gulf",
+    diacritics_map={
+        "msa": {"تقنية": "تِقْنِيَة"},
+        "gulf": {"تقنية": "تَقْنِيَّة"},
+    },
+    convert_numbers=False,
+)
+```
+
+Supported dialects: `"msa"` (Modern Standard Arabic, default), `"gulf"`.
+
 ### With LangChain
 
 Use `ArabicTextOutputParser` as a drop-in replacement for `StrOutputParser` in any LCEL chain:
@@ -179,10 +204,19 @@ result = chain.invoke({"question": "ما هي التقنية؟"})
 |---|---|---|
 | `backend` | `"dictionary"` | `"dictionary"` or `"catt"` |
 | `catt_model` | `"encoder_only"` | `"encoder_only"` (faster) or `"encoder_decoder"` (more accurate) |
-| `diacritics_map` | `{}` | Plain -> diacritized mapping (overrides when using CATT) |
+| `dialect` | `"msa"` | `"msa"` or `"gulf"` — affects number phrasing and dialect-keyed map resolution |
+| `diacritics_map` | `{}` | Plain -> diacritized mapping, or dialect-keyed `{"msa": {...}, "gulf": {...}}` |
 | `convert_numbers` | `True` | Convert digit sequences to words |
 | `language` | `"ar"` | `"ar"` or `"en"` |
 | `number_contexts` | `None` (all) | Set of contexts to enable |
+
+### Dialects
+
+| Function / Constant | Description |
+|---|---|
+| `SUPPORTED_DIALECTS` | `frozenset` of supported dialect codes |
+| `apply_dialect_number_overrides(text, dialect)` | Apply dialect-specific number word substitutions |
+| `resolve_dialect_diacritics_map(map, dialect)` | Resolve flat or dialect-keyed map for a given dialect |
 
 ### CATT Backend
 
