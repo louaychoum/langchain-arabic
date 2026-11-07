@@ -7,13 +7,13 @@ dialect-keyed diacritics map resolution.  Currently supports
 
 from __future__ import annotations
 
-from typing import Dict, Union
+from typing import Union
 
 SUPPORTED_DIALECTS: frozenset[str] = frozenset({"msa", "gulf"})
 
 # Post-processing substitutions applied to num2words MSA output.
 # Each dialect maps MSA words to their dialect equivalents.
-_DIALECT_NUMBER_OVERRIDES: Dict[str, Dict[str, str]] = {
+_DIALECT_NUMBER_OVERRIDES: dict[str, dict[str, str]] = {
     "msa": {},
     "gulf": {
         "مئتان": "ميتين",
@@ -60,9 +60,9 @@ def apply_dialect_number_overrides(text: str, dialect: str) -> str:
 
 
 def resolve_dialect_diacritics_map(
-    diacritics_map: Dict[str, Union[str, Dict[str, str]]],
+    diacritics_map: dict[str, Union[str, dict[str, str]]],
     dialect: str,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Resolve a flat or dialect-keyed diacritics map for *dialect*.
 
     A **flat map** (all values are ``str``) is returned as-is regardless

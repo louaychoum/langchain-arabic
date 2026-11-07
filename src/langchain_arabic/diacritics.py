@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Dict, Union
+from typing import Union
 
 
 def _has_arabic(text: str) -> bool:
@@ -27,7 +27,7 @@ _FORMAT_PATTERNS = [
 ]
 
 
-def _try_parse_with_patterns(text: str) -> Dict[str, str]:
+def _try_parse_with_patterns(text: str) -> dict[str, str]:
     """Auto-detect delimiter format and extract diacritics mappings.
 
     Tries each format pattern in order of specificity (most specific first).
@@ -35,7 +35,7 @@ def _try_parse_with_patterns(text: str) -> Dict[str, str]:
     mapping where both sides contain Arabic and plain != diacritized.
     """
     for pattern in _FORMAT_PATTERNS:
-        mappings: Dict[str, str] = {}
+        mappings: dict[str, str] = {}
         for match in pattern.finditer(text):
             plain = match.group(1).strip()
             diacritized = match.group(2).strip()
@@ -52,7 +52,7 @@ def _try_parse_with_patterns(text: str) -> Dict[str, str]:
     return {}
 
 
-def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
+def parse_diacritics_map(source: Union[str, dict[str, str]]) -> dict[str, str]:
     """Build a plain → diacritized mapping from *source*.
 
     Parameters
@@ -92,7 +92,7 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
     return diacritics_map
 
 
-def apply_diacritics(text: str, diacritics_map: Dict[str, str]) -> str:
+def apply_diacritics(text: str, diacritics_map: dict[str, str]) -> str:
     """Replace plain Arabic words with diacritized forms.
 
     Processes longer keys first to prevent partial-match conflicts
@@ -136,11 +136,11 @@ class DiacriticsProcessor:
     'شركة تِقْنِيَة'
     """
 
-    def __init__(self, source: Union[str, Dict[str, str]]) -> None:
+    def __init__(self, source: Union[str, dict[str, str]]) -> None:
         self._map = parse_diacritics_map(source)
 
     @property
-    def mapping(self) -> Dict[str, str]:
+    def mapping(self) -> dict[str, str]:
         """The current plain → diacritized mapping (read-only copy)."""
         return dict(self._map)
 
