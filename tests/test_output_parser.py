@@ -269,20 +269,23 @@ class TestForTtsFixes:
 
     def test_numbers_disabled(self):
         parser = ArabicTextOutputParser.for_tts_fixes(
-            fixes={}, convert_numbers=False,
+            fixes={},
+            convert_numbers=False,
         )
         assert parser.parse("العدد 5") == "العدد 5"
 
     def test_language_passthrough(self):
         parser = ArabicTextOutputParser.for_tts_fixes(
-            fixes={}, language="en",
+            fixes={},
+            language="en",
         )
         result = parser.parse("the year 2030")
         assert "two thousand and thirty" in result
 
     def test_dialect_passthrough(self):
         parser = ArabicTextOutputParser.for_tts_fixes(
-            fixes={}, dialect="gulf",
+            fixes={},
+            dialect="gulf",
         )
         assert parser.dialect == "gulf"
 
@@ -374,10 +377,10 @@ class TestDialectIntegration:
 
 
 def test_hybrid_uses_plain_dictionary_keys():
-    with patch('langchain_arabic.output_parser._get_catt_backend') as backend:
-        backend.return_value.tashkeel.return_value = 'تَقْنِيَة'
-        parser = ArabicTextOutputParser(backend='catt', diacritics_map={'تقنية': 'تِقْنِيَة'})
-        assert parser.parse('تقنية') == 'تِقْنِيَة'
+    with patch("langchain_arabic.output_parser._get_catt_backend") as backend:
+        backend.return_value.tashkeel.return_value = "تَقْنِيَة"
+        parser = ArabicTextOutputParser(backend="catt", diacritics_map={"تقنية": "تِقْنِيَة"})
+        assert parser.parse("تقنية") == "تِقْنِيَة"
 
 
 def test_real_lcel_stream_with_content_blocks():
@@ -385,14 +388,12 @@ def test_real_lcel_stream_with_content_blocks():
     from langchain_core.runnables import RunnableGenerator
 
     def generate(_input):
-        yield AIMessageChunk(content=[{'type': 'text', 'text': 'تقن'}])
-        yield AIMessageChunk(content=[{'type': 'text', 'text': 'ية 95%'}])
-        yield AIMessageChunk(content=[{'type': 'reasoning', 'reasoning': 'private'}])
+        yield AIMessageChunk(content=[{"type": "text", "text": "تقن"}])
+        yield AIMessageChunk(content=[{"type": "text", "text": "ية 95%"}])
+        yield AIMessageChunk(content=[{"type": "reasoning", "reasoning": "private"}])
 
-    chain = RunnableGenerator(generate) | ArabicTextOutputParser(
-        diacritics_map={'تقنية': 'تِقْنِيَة'}
-    )
-    assert list(chain.stream('ignored')) == ['تِقْنِيَة خمسة و تسعون بالمائة']
+    chain = RunnableGenerator(generate) | ArabicTextOutputParser(diacritics_map={"تقنية": "تِقْنِيَة"})
+    assert list(chain.stream("ignored")) == ["تِقْنِيَة خمسة و تسعون بالمائة"]
 
 
 @pytest.mark.asyncio
@@ -403,14 +404,14 @@ async def test_async_lcel_and_processing_runs_off_event_loop(monkeypatch):
     from langchain_core.runnables import RunnableGenerator
 
     async def generate(_input):
-        yield AIMessageChunk(content=[{'type': 'text', 'text': '95'}])
-        yield AIMessageChunk(content=[{'type': 'text', 'text': '%'}])
+        yield AIMessageChunk(content=[{"type": "text", "text": "95"}])
+        yield AIMessageChunk(content=[{"type": "text", "text": "%"}])
 
     parser = ArabicTextOutputParser()
-    assert await parser.ainvoke('5') == 'خمسة'
-    assert await parser.abatch(['5', '6']) == ['خمسة', 'ستة']
+    assert await parser.ainvoke("5") == "خمسة"
+    assert await parser.abatch(["5", "6"]) == ["خمسة", "ستة"]
     chain = RunnableGenerator(generate) | parser
-    assert [x async for x in chain.astream('ignored')] == ['خمسة و تسعون بالمائة']
+    assert [x async for x in chain.astream("ignored")] == ["خمسة و تسعون بالمائة"]
     main_thread = threading.get_ident()
     threads = []
 
@@ -418,8 +419,8 @@ async def test_async_lcel_and_processing_runs_off_event_loop(monkeypatch):
         threads.append(threading.get_ident())
         return text
 
-    monkeypatch.setattr(ArabicTextOutputParser, 'parse', parse)
-    assert [x async for x in chain.astream('ignored')] == ['95%']
+    monkeypatch.setattr(ArabicTextOutputParser, "parse", parse)
+    assert [x async for x in chain.astream("ignored")] == ["95%"]
     assert threads and all(thread != main_thread for thread in threads)
 
 
@@ -427,22 +428,23 @@ async def test_async_lcel_and_processing_runs_off_event_loop(monkeypatch):
 async def test_empty_async_stream():
     async def empty():
         if False:
-            yield ''
+            yield ""
 
     assert [x async for x in ArabicTextOutputParser().atransform(empty())] == []
 
 
 def test_changed_dialect_and_mapping_are_used():
-    parser = ArabicTextOutputParser(diacritics_map={
-        'msa': {'تقنية': 'تِقْنِيَة'}, 'gulf': {'تقنية': 'تَقْنِيَّة'}
-    }, convert_numbers=False)
-    parser.dialect = 'gulf'
-    assert parser.parse('تقنية') == 'تَقْنِيَّة'
-    parser.diacritics_map = {'علم': 'عِلْم'}
-    assert parser.parse('علم') == 'عِلْم'
+    parser = ArabicTextOutputParser(
+        diacritics_map={"msa": {"تقنية": "تِقْنِيَة"}, "gulf": {"تقنية": "تَقْنِيَّة"}},
+        convert_numbers=False,
+    )
+    parser.dialect = "gulf"
+    assert parser.parse("تقنية") == "تَقْنِيَّة"
+    parser.diacritics_map = {"علم": "عِلْم"}
+    assert parser.parse("علم") == "عِلْم"
 
 
-@pytest.mark.parametrize('options', [{'language': 'xx'}, {'number_contexts': {'typo'}}])
+@pytest.mark.parametrize("options", [{"language": "xx"}, {"number_contexts": {"typo"}}])
 def test_invalid_number_configuration_is_rejected(options):
     with pytest.raises(ValueError):
         ArabicTextOutputParser(**options)

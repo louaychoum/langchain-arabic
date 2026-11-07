@@ -87,7 +87,8 @@ def convert_numbers_in_text(
         elif prefix or label:
             context = "currency_en"
         elif re.fullmatch(r"\+?\d{7,15}", number) and (
-            number.startswith("+") or _PHONE_CUE.search(text[:match.start()])
+            number.startswith("+")
+            or _PHONE_CUE.search(text[: match.start()])
             or enabled == {"phone"}
         ):
             context = "phone"

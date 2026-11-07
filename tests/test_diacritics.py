@@ -11,7 +11,6 @@ from langchain_arabic.diacritics import (
     parse_diacritics_map,
 )
 
-
 # ---------------------------------------------------------------------------
 # parse_diacritics_map
 # ---------------------------------------------------------------------------
@@ -183,32 +182,32 @@ class TestDiacriticsProcessor:
         assert proc.process("شركة تقنية") == "شَرِكَة تِقْنِيَة"
 
 
-@pytest.mark.parametrize('text', ['تقنية', 'تَقْنِيَة', 'تِقْنِيَة'])
+@pytest.mark.parametrize("text", ["تقنية", "تَقْنِيَة", "تِقْنِيَة"])
 def test_existing_diacritics_are_replaced_once(text):
-    assert apply_diacritics(text, {'تقنية': 'تِقْنِيَة'}) == 'تِقْنِيَة'
+    assert apply_diacritics(text, {"تقنية": "تِقْنِيَة"}) == "تِقْنِيَة"
 
 
 def test_whole_words_mixed_text_and_rtl_punctuation():
-    text = 'English: علم، علم؛ علم؟ معلم علمي'
-    assert apply_diacritics(text, {'علم': 'عِلْم'}) == 'English: عِلْم، عِلْم؛ عِلْم؟ معلم علمي'
+    text = "English: علم، علم؛ علم؟ معلم علمي"
+    assert apply_diacritics(text, {"علم": "عِلْم"}) == "English: عِلْم، عِلْم؛ عِلْم؟ معلم علمي"
 
 
 def test_longest_phrase_does_not_reprocess_replacement():
-    mapping = {'علم الحاسوب': 'عِلْمُ الحاسوبِ', 'الحاسوب': 'الحَاسُوبِ'}
-    assert apply_diacritics('علم الحاسوب', mapping) == 'عِلْمُ الحاسوبِ'
+    mapping = {"علم الحاسوب": "عِلْمُ الحاسوبِ", "الحاسوب": "الحَاسُوبِ"}
+    assert apply_diacritics("علم الحاسوب", mapping) == "عِلْمُ الحاسوبِ"
 
 
 def test_partial_marks_are_not_duplicated():
-    assert apply_diacritics('ربّ', {'رب': 'رَبّ'}) == 'رَبّ'
+    assert apply_diacritics("ربّ", {"رب": "رَبّ"}) == "رَبّ"
 
 
-@pytest.mark.parametrize('mapping', [{'': 'x'}, {'علم': ''}, {'علم': 1}, {'ّ': 'x'}])
+@pytest.mark.parametrize("mapping", [{"": "x"}, {"علم": ""}, {"علم": 1}, {"ّ": "x"}])
 def test_invalid_dictionary_is_rejected(mapping):
-    with pytest.raises(ValueError, match='nonempty string'):
+    with pytest.raises(ValueError, match="nonempty string"):
         parse_diacritics_map(mapping)
-    with pytest.raises(ValueError, match='nonempty string'):
-        apply_diacritics('علم', mapping)
+    with pytest.raises(ValueError, match="nonempty string"):
+        apply_diacritics("علم", mapping)
 
 
 def test_incomplete_mapping_does_not_consume_next_line():
-    assert parse_diacritics_map('تقنية ->\nشركة -> شَرِكَة') == {'شركة': 'شَرِكَة'}
+    assert parse_diacritics_map("تقنية ->\nشركة -> شَرِكَة") == {"شركة": "شَرِكَة"}

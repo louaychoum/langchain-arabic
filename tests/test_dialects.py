@@ -8,7 +8,6 @@ from langchain_arabic.dialects import (
     resolve_dialect_diacritics_map,
 )
 
-
 # ---------------------------------------------------------------------------
 # SUPPORTED_DIALECTS
 # ---------------------------------------------------------------------------

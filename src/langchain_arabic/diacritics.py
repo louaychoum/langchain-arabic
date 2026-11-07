@@ -31,8 +31,10 @@ _MARKS = r"[\u064b-\u0652\u0670]"
 
 def _validate_mapping(mapping: Dict[str, str]) -> None:
     if any(
-        not isinstance(key, str) or not re.sub(_MARKS, "", key).strip()
-        or not isinstance(value, str) or not value.strip()
+        not isinstance(key, str)
+        or not re.sub(_MARKS, "", key).strip()
+        or not isinstance(value, str)
+        or not value.strip()
         for key, value in mapping.items()
     ):
         raise ValueError("Diacritics mappings require nonempty string keys and values")
@@ -92,6 +94,7 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
 
     if not diacritics_map and _has_arabic(text):
         import warnings
+
         warnings.warn(
             f"No diacritics mappings found in input ({len(text)} chars, "
             f"contains Arabic text). Supported formats: "

@@ -110,18 +110,15 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         _validate_number_config(self.language, self.number_contexts, self.dialect)
         if self.backend not in _VALID_BACKENDS:
             raise ValueError(
-                f"Unknown backend {self.backend!r}. "
-                f"Choose from: {sorted(_VALID_BACKENDS)}"
+                f"Unknown backend {self.backend!r}. Choose from: {sorted(_VALID_BACKENDS)}"
             )
         if self.backend == "catt" and self.catt_model not in _VALID_CATT_MODELS:
             raise ValueError(
-                f"Unknown catt_model {self.catt_model!r}. "
-                f"Choose from: {sorted(_VALID_CATT_MODELS)}"
+                f"Unknown catt_model {self.catt_model!r}. Choose from: {sorted(_VALID_CATT_MODELS)}"
             )
         if self.dialect not in SUPPORTED_DIALECTS:
             raise ValueError(
-                f"Unsupported dialect {self.dialect!r}. "
-                f"Choose from: {sorted(SUPPORTED_DIALECTS)}"
+                f"Unsupported dialect {self.dialect!r}. Choose from: {sorted(SUPPORTED_DIALECTS)}"
             )
         self._resolve_map()
         return self
@@ -156,9 +153,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         dialect
             Target dialect (``"msa"`` or ``"gulf"``).
         """
-        diacritics_map = (
-            parse_diacritics_map(fixes) if isinstance(fixes, str) else fixes
-        )
+        diacritics_map = parse_diacritics_map(fixes) if isinstance(fixes, str) else fixes
         return cls(
             backend="dictionary",
             diacritics_map=diacritics_map,

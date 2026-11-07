@@ -11,7 +11,6 @@ import pytest
 
 import langchain_arabic.catt_backend as cb
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -136,33 +135,33 @@ class TestCATTBackendTashkeel:
 
 def test_preserves_mixed_text_and_rtl_punctuation(_mock_catt_installed, monkeypatch):
     model = MagicMock()
-    model.do_tashkeel.return_value = 'نَص عَرَبِي'
-    monkeypatch.setattr(cb, 'CATTEncoderOnly', MagicMock(return_value=model))
-    assert cb.CATTBackend().tashkeel('Hello نص، عربي! ٠١٢\n') == 'Hello نَص، عَرَبِي! ٠١٢\n'
+    model.do_tashkeel.return_value = "نَص عَرَبِي"
+    monkeypatch.setattr(cb, "CATTEncoderOnly", MagicMock(return_value=model))
+    assert cb.CATTBackend().tashkeel("Hello نص، عربي! ٠١٢\n") == "Hello نَص، عَرَبِي! ٠١٢\n"
 
 
 def test_rejects_changed_base_letters(_mock_catt_installed, monkeypatch):
     model = MagicMock()
-    model.do_tashkeel.return_value = 'شَيء'
-    monkeypatch.setattr(cb, 'CATTEncoderOnly', MagicMock(return_value=model))
-    with pytest.raises(ValueError, match='base letters'):
-        cb.CATTBackend().tashkeel('نص')
+    model.do_tashkeel.return_value = "شَيء"
+    monkeypatch.setattr(cb, "CATTEncoderOnly", MagicMock(return_value=model))
+    with pytest.raises(ValueError, match="base letters"):
+        cb.CATTBackend().tashkeel("نص")
 
 
 def test_batch_retains_empty_and_non_arabic_inputs(_mock_catt_installed, monkeypatch):
     model = MagicMock()
-    model.do_tashkeel_batch.return_value = ['نَص']
-    monkeypatch.setattr(cb, 'CATTEncoderOnly', MagicMock(return_value=model))
-    assert cb.CATTBackend().tashkeel_batch(['', 'English 12', 'نص']) == ['', 'English 12', 'نَص']
-    model.do_tashkeel_batch.assert_called_once_with(['نص'])
+    model.do_tashkeel_batch.return_value = ["نَص"]
+    monkeypatch.setattr(cb, "CATTEncoderOnly", MagicMock(return_value=model))
+    assert cb.CATTBackend().tashkeel_batch(["", "English 12", "نص"]) == ["", "English 12", "نَص"]
+    model.do_tashkeel_batch.assert_called_once_with(["نص"])
 
 
 def test_batch_rejects_missing_results(_mock_catt_installed, monkeypatch):
     model = MagicMock()
     model.do_tashkeel_batch.return_value = []
-    monkeypatch.setattr(cb, 'CATTEncoderOnly', MagicMock(return_value=model))
-    with pytest.raises(ValueError, match='batch results'):
-        cb.CATTBackend().tashkeel_batch(['نص'])
+    monkeypatch.setattr(cb, "CATTEncoderOnly", MagicMock(return_value=model))
+    with pytest.raises(ValueError, match="batch results"):
+        cb.CATTBackend().tashkeel_batch(["نص"])
 
 
 def test_concurrent_first_calls_load_once(_mock_catt_installed, monkeypatch):
@@ -172,7 +171,7 @@ def test_concurrent_first_calls_load_once(_mock_catt_installed, monkeypatch):
     entered = threading.Event()
     release = threading.Event()
     model = MagicMock()
-    model.do_tashkeel.return_value = 'نَص'
+    model.do_tashkeel.return_value = "نَص"
 
     def load():
         entered.set()
@@ -180,14 +179,14 @@ def test_concurrent_first_calls_load_once(_mock_catt_installed, monkeypatch):
         return model
 
     constructor = MagicMock(side_effect=load)
-    monkeypatch.setattr(cb, 'CATTEncoderOnly', constructor)
+    monkeypatch.setattr(cb, "CATTEncoderOnly", constructor)
     backend = cb.CATTBackend()
     with ThreadPoolExecutor(max_workers=2) as pool:
-        first = pool.submit(backend.tashkeel, 'نص')
+        first = pool.submit(backend.tashkeel, "نص")
         assert entered.wait(2)
-        second = pool.submit(backend.tashkeel, 'نص')
+        second = pool.submit(backend.tashkeel, "نص")
         release.set()
-        assert first.result() == second.result() == 'نَص'
+        assert first.result() == second.result() == "نَص"
     constructor.assert_called_once()
 
 
@@ -195,6 +194,11 @@ def test_dictionary_import_does_not_import_neural_runtime():
     import subprocess
     import sys
 
-    subprocess.run([sys.executable, '-c',
-                    'import sys, langchain_arabic; assert "catt_tashkeel" not in sys.modules'],
-                   check=True)
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            'import sys, langchain_arabic; assert "catt_tashkeel" not in sys.modules',
+        ],
+        check=True,
+    )

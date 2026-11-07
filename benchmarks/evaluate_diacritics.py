@@ -11,7 +11,6 @@ CATT benchmarks are skipped gracefully if catt-tashkeel is not installed.
 
 from __future__ import annotations
 
-import sys
 import time
 
 from langchain_arabic import ArabicTextOutputParser, apply_diacritics
@@ -71,7 +70,7 @@ DICTIONARY = {
 # Metrics
 # ---------------------------------------------------------------------------
 
-_DIACRITICS = set("\u064B\u064C\u064D\u064E\u064F\u0650\u0651\u0652\u0670")
+_DIACRITICS = set("\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670")
 
 
 def _get_diacritic_pairs(text: str) -> list[tuple[str, str]]:

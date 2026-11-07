@@ -37,7 +37,7 @@ class TestConvertNumbersArabic:
         assert "920000247" not in result
         # Phone numbers are digit-by-digit; verify individual digit words
         assert "تسعة" in result  # 9
-        assert "صفر" in result   # 0
+        assert "صفر" in result  # 0
 
     def test_no_numbers(self):
         text = "مرحبا بالعالم"
@@ -108,50 +108,53 @@ class TestNumbersProcessor:
         assert "بالمائة" in result
 
 
-@pytest.mark.parametrize(('text', 'expected'), [
-    ('٠ ١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩', 'صفر واحد اثنان ثلاثة أربعة خمسة ستة سبعة ثمانية تسعة'),
-    ('نسبة ٩٥٪', 'نسبة خمسة و تسعون بالمائة'),
-    ('١٢٫٥٠ ريال،', 'اثنا عشر فاصلة خمسة صفر ريال،'),
-    ('١٬٠٠٠', 'ألف'),
-    ('-12', 'سالب اثنا عشر'),
-    ('−12', 'سالب اثنا عشر'),
-    ('+12', 'موجب اثنا عشر'),
-    ('0.001', 'صفر فاصلة صفر صفر واحد'),
-    ('12.3456', 'اثنا عشر فاصلة ثلاثة أربعة خمسة ستة'),
-    ('1000000', 'مليون'),
-    ('1,000,000', 'مليون'),
-    ('5, next.', 'خمسة, next.'),
-    ('5. Next', 'خمسة. Next'),
-    ('X5 v2.0', 'X5 v2.0'),
-    ('5، 6؛ 7؟', 'خمسة، ستة؛ سبعة؟'),
-])
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("٠ ١ ٢ ٣ ٤ ٥ ٦ ٧ ٨ ٩", "صفر واحد اثنان ثلاثة أربعة خمسة ستة سبعة ثمانية تسعة"),
+        ("نسبة ٩٥٪", "نسبة خمسة و تسعون بالمائة"),
+        ("١٢٫٥٠ ريال،", "اثنا عشر فاصلة خمسة صفر ريال،"),
+        ("١٬٠٠٠", "ألف"),
+        ("-12", "سالب اثنا عشر"),
+        ("−12", "سالب اثنا عشر"),
+        ("+12", "موجب اثنا عشر"),
+        ("0.001", "صفر فاصلة صفر صفر واحد"),
+        ("12.3456", "اثنا عشر فاصلة ثلاثة أربعة خمسة ستة"),
+        ("1000000", "مليون"),
+        ("1,000,000", "مليون"),
+        ("5, next.", "خمسة, next."),
+        ("5. Next", "خمسة. Next"),
+        ("X5 v2.0", "X5 v2.0"),
+        ("5، 6؛ 7؟", "خمسة، ستة؛ سبعة؟"),
+    ],
+)
 def test_numeric_edges(text, expected):
     assert convert_numbers_in_text(text) == expected
 
 
 def test_english_decimal_preserves_fraction_and_sign():
-    assert convert_numbers_in_text('-0.050', 'en') == 'minus zero point zero five zero'
+    assert convert_numbers_in_text("-0.050", "en") == "minus zero point zero five zero"
 
 
 def test_phone_requires_cue_or_explicit_context():
-    digits = 'واحد صفر صفر صفر صفر صفر صفر'
-    assert convert_numbers_in_text('phone: 1000000') == 'phone: ' + digits
-    assert convert_numbers_in_text('+1000000') == digits
-    assert convert_numbers_in_text('1000000', contexts={'phone'}) == digits
-    assert convert_numbers_in_text('1000000', contexts=set()) == '1000000'
+    digits = "واحد صفر صفر صفر صفر صفر صفر"
+    assert convert_numbers_in_text("phone: 1000000") == "phone: " + digits
+    assert convert_numbers_in_text("+1000000") == digits
+    assert convert_numbers_in_text("1000000", contexts={"phone"}) == digits
+    assert convert_numbers_in_text("1000000", contexts=set()) == "1000000"
 
 
 def test_gulf_changes_only_generated_numbers():
-    assert convert_numbers_in_text('مائة و 100%', dialect='gulf') == 'مائة و مية بالمية'
+    assert convert_numbers_in_text("مائة و 100%", dialect="gulf") == "مائة و مية بالمية"
 
 
-@pytest.mark.parametrize('options', [{'language': 'xx'}, {'contexts': {'typo'}}, {'dialect': 'xx'}])
+@pytest.mark.parametrize("options", [{"language": "xx"}, {"contexts": {"typo"}}, {"dialect": "xx"}])
 def test_invalid_configuration(options):
     with pytest.raises(ValueError):
-        convert_numbers_in_text('', **options)
+        convert_numbers_in_text("", **options)
 
 
 def test_unsupported_magnitude_is_preserved():
-    text = '9' * 100
-    with pytest.warns(UserWarning, match='retained unchanged'):
+    text = "9" * 100
+    with pytest.warns(UserWarning, match="retained unchanged"):
         assert convert_numbers_in_text(text) == text

@@ -7,7 +7,10 @@ dialect-keyed diacritics map resolution.  Currently supports
 
 from __future__ import annotations
 
-from typing import Dict, Union
+from collections.abc import Mapping
+from typing import Dict, Union, cast
+
+from langchain_arabic.diacritics import parse_diacritics_map
 
 SUPPORTED_DIALECTS: frozenset[str] = frozenset({"msa", "gulf"})
 
@@ -28,8 +31,7 @@ def _validate_dialect(dialect: str) -> None:
     """Raise ``ValueError`` if *dialect* is not in :data:`SUPPORTED_DIALECTS`."""
     if dialect not in SUPPORTED_DIALECTS:
         raise ValueError(
-            f"Unsupported dialect {dialect!r}. "
-            f"Choose from: {sorted(SUPPORTED_DIALECTS)}"
+            f"Unsupported dialect {dialect!r}. Choose from: {sorted(SUPPORTED_DIALECTS)}"
         )
 
 
@@ -53,14 +55,16 @@ def apply_dialect_number_overrides(text: str, dialect: str) -> str:
     if not overrides or not text:
         return text
     for msa_word, dialect_word in sorted(
-        overrides.items(), key=lambda x: len(x[0]), reverse=True,
+        overrides.items(),
+        key=lambda x: len(x[0]),
+        reverse=True,
     ):
         text = text.replace(msa_word, dialect_word)
     return text
 
 
 def resolve_dialect_diacritics_map(
-    diacritics_map: Dict[str, Union[str, Dict[str, str]]],
+    diacritics_map: Mapping[str, Union[str, Dict[str, str]]],
     dialect: str,
 ) -> Dict[str, str]:
     """Resolve a flat or dialect-keyed diacritics map for *dialect*.
@@ -98,7 +102,8 @@ def resolve_dialect_diacritics_map(
 
     if all_dicts:
         # Dialect-keyed map
-        return dict(diacritics_map.get(dialect, diacritics_map.get("msa", {})))
+        keyed = cast(Mapping[str, Dict[str, str]], diacritics_map)
+        return parse_diacritics_map(keyed.get(dialect, keyed.get("msa", {})))
 
     # Flat map — return as-is
-    return dict(diacritics_map)
+    return parse_diacritics_map(dict(cast(Mapping[str, str], diacritics_map)))

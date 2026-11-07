@@ -77,10 +77,7 @@ class CATTBackend:
     def __init__(self, model: str = "encoder_only") -> None:
         _check_catt_installed()
         if model not in _VALID_MODELS:
-            raise ValueError(
-                f"Unknown CATT model {model!r}. "
-                f"Choose from: {sorted(_VALID_MODELS)}"
-            )
+            raise ValueError(f"Unknown CATT model {model!r}. Choose from: {sorted(_VALID_MODELS)}")
         self._model_name = model
         self._model: Optional[_TashkeelModel] = None
         self._load_lock = threading.Lock()
