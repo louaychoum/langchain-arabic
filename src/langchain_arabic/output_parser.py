@@ -18,8 +18,9 @@ from __future__ import annotations
 import threading
 from typing import Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
 
+from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import BaseTransformOutputParser
-from pydantic import Field, PrivateAttr, model_validator
+from pydantic import Field, model_validator
 
 from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
 from langchain_arabic.dialects import (
@@ -33,6 +34,17 @@ _CATT_LOCK = threading.Lock()
 
 _VALID_BACKENDS = {"dictionary", "catt"}
 _VALID_CATT_MODELS = {"encoder_only", "encoder_decoder"}
+
+
+def _chunk_text(chunk: Union[str, BaseMessage]) -> str:
+    content = chunk if isinstance(chunk, str) else chunk.content
+    if isinstance(content, str):
+        return content
+    return "".join(
+        block if isinstance(block, str) else block.get("text", "")
+        for block in content
+        if isinstance(block, str) or block.get("type") in {None, "text"}
+    )
 
 
 def _get_catt_backend(model: str) -> Any:
@@ -93,8 +105,6 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
     language: str = "ar"
     number_contexts: Optional[Set[str]] = None
 
-    _resolved_map: Dict[str, str] = PrivateAttr(default_factory=dict)
-
     @model_validator(mode="after")
     def _validate_config(self) -> ArabicTextOutputParser:
         _validate_number_config(self.language, self.number_contexts, self.dialect)
@@ -113,14 +123,13 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 f"Unsupported dialect {self.dialect!r}. "
                 f"Choose from: {sorted(SUPPORTED_DIALECTS)}"
             )
-        # Coerce string/path → dict via auto-detection
-        if isinstance(self.diacritics_map, str):
-            self._resolved_map = parse_diacritics_map(self.diacritics_map)
-        else:
-            self._resolved_map = resolve_dialect_diacritics_map(
-                self.diacritics_map, self.dialect,
-            )
+        self._resolve_map()
         return self
+
+    def _resolve_map(self) -> Dict[str, str]:
+        if isinstance(self.diacritics_map, str):
+            return parse_diacritics_map(self.diacritics_map)
+        return resolve_dialect_diacritics_map(self.diacritics_map, self.dialect)
 
     @classmethod
     def for_tts_fixes(
@@ -164,6 +173,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         if not text:
             return text
 
+        resolved_map = self._resolve_map()
         if self.backend == "catt":
             # With CATT: convert numbers FIRST so the Arabic words
             # get diacritized too (CATT strips raw digits)
@@ -173,12 +183,12 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 )
             text = _get_catt_backend(self.catt_model).tashkeel(text)
             # Dictionary overrides applied AFTER auto-diacritization
-            if self._resolved_map:
-                text = apply_diacritics(text, self._resolved_map)
+            if resolved_map:
+                text = apply_diacritics(text, resolved_map)
         else:
             # With dictionary: diacritize first, then convert numbers
-            if self._resolved_map:
-                text = apply_diacritics(text, self._resolved_map)
+            if resolved_map:
+                text = apply_diacritics(text, resolved_map)
             if self.convert_numbers:
                 text = convert_numbers_in_text(
                     text, self.language, contexts=self.number_contexts, dialect=self.dialect
@@ -187,33 +197,27 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
 
     def _transform(
         self,
-        input: Iterator[Union[str, Any]],
+        input: Iterator[Union[str, BaseMessage]],
     ) -> Iterator[str]:
         """Buffer all streaming chunks, then process the full text once."""
         chunks: list[str] = []
         for chunk in input:
-            if hasattr(chunk, "content"):
-                chunks.append(str(chunk.content))
-            else:
-                chunks.append(str(chunk))
+            chunks.append(_chunk_text(chunk))
         full_text = "".join(chunks)
         if full_text:
             yield self.parse(full_text)
 
     async def _atransform(
         self,
-        input: AsyncIterator[Union[str, Any]],
+        input: AsyncIterator[Union[str, BaseMessage]],
     ) -> AsyncIterator[str]:
         """Async version: buffer all chunks, process full text."""
         chunks: list[str] = []
         async for chunk in input:
-            if hasattr(chunk, "content"):
-                chunks.append(str(chunk.content))
-            else:
-                chunks.append(str(chunk))
+            chunks.append(_chunk_text(chunk))
         full_text = "".join(chunks)
         if full_text:
-            yield self.parse(full_text)
+            yield await self.aparse(full_text)
 
     @property
     def _type(self) -> str:
