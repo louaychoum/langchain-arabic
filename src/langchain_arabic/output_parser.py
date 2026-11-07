@@ -24,10 +24,9 @@ from pydantic import Field, PrivateAttr, model_validator
 from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
 from langchain_arabic.dialects import (
     SUPPORTED_DIALECTS,
-    apply_dialect_number_overrides,
     resolve_dialect_diacritics_map,
 )
-from langchain_arabic.numbers import convert_numbers_in_text
+from langchain_arabic.numbers import _validate_number_config, convert_numbers_in_text
 
 _CATT_CACHE: Dict[str, Any] = {}
 _CATT_LOCK = threading.Lock()
@@ -98,6 +97,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
 
     @model_validator(mode="after")
     def _validate_config(self) -> ArabicTextOutputParser:
+        _validate_number_config(self.language, self.number_contexts, self.dialect)
         if self.backend not in _VALID_BACKENDS:
             raise ValueError(
                 f"Unknown backend {self.backend!r}. "
@@ -169,9 +169,8 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             # get diacritized too (CATT strips raw digits)
             if self.convert_numbers:
                 text = convert_numbers_in_text(
-                    text, self.language, contexts=self.number_contexts
+                    text, self.language, contexts=self.number_contexts, dialect=self.dialect
                 )
-                text = apply_dialect_number_overrides(text, self.dialect)
             text = _get_catt_backend(self.catt_model).tashkeel(text)
             # Dictionary overrides applied AFTER auto-diacritization
             if self._resolved_map:
@@ -182,9 +181,8 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
                 text = apply_diacritics(text, self._resolved_map)
             if self.convert_numbers:
                 text = convert_numbers_in_text(
-                    text, self.language, contexts=self.number_contexts
+                    text, self.language, contexts=self.number_contexts, dialect=self.dialect
                 )
-                text = apply_dialect_number_overrides(text, self.dialect)
         return text
 
     def _transform(

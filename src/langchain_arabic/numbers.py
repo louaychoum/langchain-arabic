@@ -1,55 +1,55 @@
-"""Arabic and English number-to-word conversion for LLM output text.
-
-Detects numbers in text, classifies their context (year, percentage,
-currency, phone, plain), and converts them to words using ``num2words``.
-"""
+"""Arabic and English number-to-word conversion with explicit numeric contexts."""
 
 from __future__ import annotations
 
 import re
-from typing import List, Set
+import warnings
+from typing import Set
 
 from num2words import num2words
 
-_PATTERNS: List[tuple] = [
-    # Percentage: 95% or 95 %
-    (re.compile(r"(\d[\d,]*\.?\d*)\s*[%٪]"), "percentage", 1),
-    # Currency (Arabic): 500 ريال / درهم / دينار
-    (re.compile(r"(\d[\d,]*\.?\d*)\s*(ريال|درهم|دينار)"), "currency_ar", 1),
-    # Currency (English): SAR 500 or 500 SAR/USD/AED
-    (re.compile(r"(?:SAR|USD|AED|QAR)\s*(\d[\d,]*\.?\d*)"), "currency_en", 1),
-    (re.compile(r"(\d[\d,]*\.?\d*)\s*(?:SAR|USD|AED|QAR)"), "currency_en", 1),
-    # Phone: 7+ consecutive digits (or starting with + or 920/800)
-    (re.compile(r"\+?\d{7,15}"), "phone", 0),
-    (re.compile(r"(?:920|800)\d{6}"), "phone", 0),
-]
+from langchain_arabic.dialects import SUPPORTED_DIALECTS, apply_dialect_number_overrides
 
-_STANDALONE_NUMBER = re.compile(r"\d[\d,]*\.?\d*|\d")
+_CONTEXTS = {"percentage", "currency_ar", "currency_en", "phone", "plain"}
+_CURRENCIES = r"SAR|USD|AED|QAR"
+_NUMBER = re.compile(
+    rf"(?<![\w.٫])(?P<prefix>(?:{_CURRENCIES})[ \t]*)?"
+    r"(?P<number>[+−-]?(?:\d{1,3}(?:[,٬]\d{3})+|\d+)(?:[.٫]\d+)?)"
+    rf"(?P<suffix>[ \t]*(?:[%٪]|ريال|درهم|دينار|{_CURRENCIES}))?"
+    r"(?!\w|[.٫]\d)"
+)
+_PHONE_CUE = re.compile(
+    r"(?:اتصل(?: على)?|هاتف|جوال|phone|tel|call)[ \t]*[:：]?[ \t]*$", re.IGNORECASE
+)
 
 
-def _convert_single(number_str: str, context: str, language: str) -> str:
-    """Convert a single number string to words based on context."""
-    cleaned = number_str.replace(",", "")
+def _validate_number_config(language: str, contexts: Set[str] | None, dialect: str) -> None:
+    if language not in {"ar", "en"}:
+        raise ValueError("language must be 'ar' or 'en'")
+    if contexts is not None and not contexts <= _CONTEXTS:
+        raise ValueError(f"Unknown number contexts: {sorted(contexts - _CONTEXTS)}")
+    if dialect not in SUPPORTED_DIALECTS:
+        raise ValueError(f"Unsupported dialect {dialect!r}")
 
+
+def _convert_single(number: str, context: str, language: str) -> str:
+    cleaned = number.replace(",", "").replace("٬", "").replace("٫", ".")
     if context == "phone":
-        return " ".join(
-            num2words(int(d), lang=language) for d in cleaned if d.isdigit()
-        )
+        return " ".join(num2words(int(d), lang=language) for d in cleaned if d.isdecimal())
 
-    try:
-        value = float(cleaned) if "." in cleaned else int(cleaned)
-    except ValueError:
-        return number_str
-
-    words = num2words(value, lang=language)
-
-    words = re.sub(r" {2,}", " ", words)
-
-    if context == "percentage":
-        suffix = "بالمائة" if language == "ar" else "percent"
-        return f"{words} {suffix}"
-
-    return words
+    sign = ""
+    if cleaned[0] in "+-−":
+        if cleaned[0] in "-−":
+            sign = "سالب " if language == "ar" else "minus "
+        else:
+            sign = "موجب " if language == "ar" else "plus "
+        cleaned = cleaned[1:]
+    integer, point, fraction = cleaned.partition(".")
+    words = num2words(int(integer), lang=language)
+    if point:
+        separator = " فاصلة " if language == "ar" else " point "
+        words += separator + " ".join(num2words(int(d), lang=language) for d in fraction)
+    return sign + re.sub(r" {2,}", " ", words)
 
 
 def convert_numbers_in_text(
@@ -57,60 +57,59 @@ def convert_numbers_in_text(
     language: str = "ar",
     *,
     contexts: Set[str] | None = None,
+    dialect: str = "msa",
 ) -> str:
-    """Replace digit sequences in *text* with their word equivalents.
+    """Convert signed numbers, decimal digits, percentages, currencies and phones.
 
-    Parameters
-    ----------
-    text
-        Input text possibly containing digits.
-    language
-        Target language for conversion (``"ar"`` or ``"en"``).
-    contexts
-        Optional set of contexts to enable. Defaults to all.
-        Valid values: ``"percentage"``, ``"currency_ar"``,
-        ``"currency_en"``, ``"phone"``, ``"plain"``.
+    Supports Western/Eastern Arabic digits, ``.``/``٫`` decimal separators,
+    and grouped thousands (``1,000`` or ``١٬٠٠٠``). Fractional digits are read
+    individually so precision and trailing zeros survive. Currency labels stay
+    unchanged; grammatical currency agreement is not inferred.
 
-    Returns
-    -------
-    str
-        Text with numbers replaced by words.
+    ``contexts`` selects percentage, currency_ar, currency_en, phone and/or plain.
+    With all contexts enabled, phones require 7–15 ungrouped digits and a leading
+    ``+`` or a preceding phone cue (e.g. ``اتصل على`` or ``phone:``).
+    ``contexts={"phone"}`` explicitly reads bare 7–15 digit numbers as phones.
+    Unsupported magnitudes are retained with a warning.
     """
-    if not text:
-        return text
+    _validate_number_config(language, contexts, dialect)
+    enabled = _CONTEXTS if contexts is None else contexts
 
-    all_contexts = contexts is None
+    def replace(match: re.Match[str]) -> str:
+        number = match["number"]
+        prefix = match["prefix"] or ""
+        suffix = match["suffix"] or ""
+        label = suffix.strip()
+        if label in {"%", "٪"}:
+            context = "percentage"
+        elif label in {"ريال", "درهم", "دينار"}:
+            context = "currency_ar"
+        elif prefix or label:
+            context = "currency_en"
+        elif re.fullmatch(r"\+?\d{7,15}", number) and (
+            number.startswith("+") or _PHONE_CUE.search(text[:match.start()])
+            or enabled == {"phone"}
+        ):
+            context = "phone"
+        else:
+            context = "plain"
+        if context not in enabled:
+            if "plain" not in enabled:
+                return match[0]
+            context = "plain"
+        try:
+            words = _convert_single(number, context, language)
+        except (ValueError, OverflowError):
+            warnings.warn("Number is outside the supported range; retained unchanged", stacklevel=2)
+            return match[0]
+        if context == "percentage":
+            words += " بالمائة" if language == "ar" else " percent"
+            suffix = ""
+        if language == "ar":
+            words = apply_dialect_number_overrides(words, dialect)
+        return prefix + words + suffix
 
-    for pattern, ctx, group_idx in _PATTERNS:
-        if not all_contexts and ctx not in contexts:
-            continue
-
-        def _replacer(m: re.Match, _ctx: str = ctx, _gi: int = group_idx) -> str:
-            full = m.group(0)
-            num_str = m.group(_gi) if _gi > 0 else full
-
-            # Strip leading + from phone
-            digits_only = num_str.lstrip("+")
-            converted = _convert_single(digits_only, _ctx, language)
-
-            # For percentage, the conversion already includes "بالمائة"/"percent"
-            # so replace the entire match (including the % sign)
-            if _ctx == "percentage":
-                return converted
-            if _gi > 0:
-                return full.replace(num_str, converted)
-            return converted
-
-        text = pattern.sub(_replacer, text)
-
-    if all_contexts or "plain" in contexts:
-
-        def _plain_replacer(m: re.Match) -> str:
-            return _convert_single(m.group(0), "plain", language)
-
-        text = _STANDALONE_NUMBER.sub(_plain_replacer, text)
-
-    return text
+    return _NUMBER.sub(replace, text)
 
 
 class NumbersProcessor:
@@ -135,8 +134,9 @@ class NumbersProcessor:
         language: str = "ar",
         contexts: Set[str] | None = None,
     ) -> None:
+        _validate_number_config(language, contexts, "msa")
         self._language = language
-        self._contexts = contexts
+        self._contexts = None if contexts is None else set(contexts)
 
     @property
     def language(self) -> str:
