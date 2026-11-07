@@ -1,7 +1,7 @@
 # langchain-arabic
 
 [![PyPI version](https://img.shields.io/pypi/v/langchain-arabic.svg)](https://pypi.org/project/langchain-arabic/)
-[![PyPI Downloads](https://static.pepy.tech/personalized-badge/langchain-arabic?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/langchain-arabic)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/langchain-arabic?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=RED&left_text=downloads)](https://pepy.tech/projects/langchain-arabic)
 [![Python versions](https://img.shields.io/pypi/pyversions/langchain-arabic.svg)](https://pypi.org/project/langchain-arabic/)
 [![CI](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml/badge.svg)](https://github.com/louaychoum/langchain-arabic/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
