@@ -50,6 +50,9 @@ python benchmarks/evaluate_diacritics.py --catt
 
 This explicitly enables both neural models and may download model weights. An
 installation/model/alignment failure is an error, not a fabricated score.
-The committed results contain no CATT measurements. Current upstream GPU wheels
-do not support macOS. The package wrapper preserves original text and transfers
-only vowel marks from predictions with matching Arabic base letters.
+The default [results](results.md) contain no CATT measurements. Separate
+[post-release CPU results](catt-results.md) were generated with both real models;
+[environment and reproduction](../docs/release-verification.md) record the manual
+CPU installation. Current upstream GPU wheels do not support macOS. The package
+wrapper preserves original text and transfers only vowel marks from predictions
+with matching Arabic base letters.

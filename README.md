@@ -159,8 +159,10 @@ changes Arabic base letters, it raises `ValueError` rather than dropping content
 `CATTBackend` also exposes `.tashkeel()` and `.tashkeel_batch()`.
 
 Current `catt-tashkeel` uses ONNX Runtime and depends on `onnxruntime-gpu`.
-The extra cannot currently resolve on macOS. Neural inference was not validated
-for this release; its tests use mocks. Model choice is not an accuracy guarantee.
+The extra cannot currently resolve on macOS. Both models passed a post-release
+smoke check using a manually installed CPU ONNX Runtime on macOS; this does not
+validate the GPU extra. See [verification and reproduction](docs/release-verification.md).
+Default tests use mocks. Model choice is not an accuracy guarantee.
 
 ## Measured smoke results
 
@@ -174,8 +176,10 @@ on a small hand-authored set under the [MIT license](LICENSE):
 
 These are narrow smoke results. They do not estimate general Arabic accuracy.
 The dictionary overlaps the evaluation set and leaves unknown words unchanged.
-CATT was not run. See [results](benchmarks/results.md), [methodology](benchmarks/README.md),
-and [data provenance](benchmarks/data/README.md).
+See [offline results](benchmarks/results.md), [methodology](benchmarks/README.md),
+and [data provenance](benchmarks/data/README.md). Separate
+[post-release CATT smoke results](benchmarks/catt-results.md) were produced with
+CPU ONNX Runtime; they carry the same small-set limitations.
 
 ```bash
 python benchmarks/evaluate_diacritics.py --check
@@ -186,7 +190,7 @@ python benchmarks/evaluate_diacritics.py --check
 - Evaluate on a versioned external corpus with verified redistribution terms.
 - Add dialect rules with native-speaker examples and regression tests.
 - Cover ordinal/currency grammar explicitly before advertising support.
-- Validate real CATT inference on a supported platform and pursue CPU portability upstream.
+- Validate the GPU extra on supported platforms and pursue CPU installation upstream.
 
 ## Contributing
 
