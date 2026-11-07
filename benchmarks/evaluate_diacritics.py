@@ -1,237 +1,141 @@
-"""Evaluate diacritization accuracy across different modes.
-
-Computes Diacritization Error Rate (DER) and Word Error Rate (WER) on a small
-curated Arabic test set.
-
-Run with:
-    python benchmarks/evaluate_diacritics.py
-
-CATT benchmarks are skipped gracefully if catt-tashkeel is not installed.
-"""
+"""Reproduce the offline smoke evaluation; optional CATT runs require --catt."""
 
 from __future__ import annotations
 
-import time
+import argparse
+import json
+import re
+import unicodedata
+from pathlib import Path
 
-from langchain_arabic import ArabicTextOutputParser, apply_diacritics
+from langchain_arabic import ArabicTextOutputParser, apply_diacritics, convert_numbers_in_text
 
-# ---------------------------------------------------------------------------
-# Test corpus: (undiacritized input, expected fully-diacritized output)
-#
-# These are manually curated examples — not a substitute for a full academic
-# benchmark (e.g. Tashkeela corpus), but sufficient to demonstrate the
-# evaluation methodology and compare modes.
-# ---------------------------------------------------------------------------
-TEST_CORPUS = [
-    (
-        "شركة تقنية كبيرة",
-        "شَرِكَة تِقْنِيَة كَبِيرَة",
-    ),
-    (
-        "الطالب يدرس في الجامعة",
-        "الطَّالِبُ يَدْرُسُ فِي الجَامِعَةِ",
-    ),
-    (
-        "المملكة العربية السعودية",
-        "المَمْلَكَة العَرَبِيَّة السُّعُودِيَّة",
-    ),
-    (
-        "بسم الله الرحمن الرحيم",
-        "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ",
-    ),
-    (
-        "الحمد لله رب العالمين",
-        "الحَمْدُ لِلَّهِ رَبِّ العَالَمِينَ",
-    ),
-    (
-        "علم الحاسوب مهم جدا",
-        "عِلْمُ الحَاسُوبِ مُهِمٌّ جِدًّا",
-    ),
-    (
-        "الذكاء الاصطناعي يتطور",
-        "الذَّكَاءُ الاصْطِنَاعِيُّ يَتَطَوَّرُ",
-    ),
-    (
-        "تعلم اللغة العربية",
-        "تَعَلُّمُ اللُّغَةِ العَرَبِيَّةِ",
-    ),
-]
-
-# Dictionary for dictionary-only mode
+_DATA = Path(__file__).with_name("data")
+_RESULTS = Path(__file__).with_name("results.md")
 DICTIONARY = {
-    "شركة": "شَرِكَة",
-    "تقنية": "تِقْنِيَة",
-    "علم الحاسوب": "عِلْمُ الحَاسُوبِ",
-    "كبيرة": "كَبِيرَة",
+    "شركة": "شَرِكَةٌ",
+    "تقنية": "تِقْنِيَّةٌ",
+    "كبيرة": "كَبِيرَةٌ",
+    "علم الحاسوب": "عِلْمُ الْحَاسُوبِ",
 }
-
-
-# ---------------------------------------------------------------------------
-# Metrics
-# ---------------------------------------------------------------------------
-
 _DIACRITICS = set("\u064b\u064c\u064d\u064e\u064f\u0650\u0651\u0652\u0670")
 
 
 def _get_diacritic_pairs(text: str) -> list[tuple[str, str]]:
-    """Return (base_char, diacritic_or_empty) pairs for DER calculation."""
     pairs: list[tuple[str, str]] = []
-    base = None
-    for char in text:
+    for char in unicodedata.normalize("NFC", text):
         if char in _DIACRITICS:
-            if base is not None:
-                pairs[-1] = (pairs[-1][0], pairs[-1][1] + char)
+            if not pairs:
+                raise ValueError("Diacritic without a base character")
+            pairs[-1] = (pairs[-1][0], pairs[-1][1] + char)
         else:
             pairs.append((char, ""))
-            base = char
     return pairs
 
 
-def compute_der(predicted: str, reference: str) -> float:
-    """Diacritization Error Rate: fraction of characters with wrong diacritics.
+def _is_arabic_letter(char: str) -> bool:
+    return unicodedata.category(char).startswith("L") and "ARABIC" in unicodedata.name(char, "")
 
-    Only compares positions where the base characters match (skips alignment
-    issues).  Returns 0.0 for perfect match, 1.0 for all wrong.
+
+def compute_der(predicted: str, reference: str) -> float:
+    """Wrong mark sequences / Arabic letters, including reference case endings.
+
+    Canonically equivalent combining marks compare equal. Base text must match
+    exactly; deletion or alteration raises instead of silently improving DER.
     """
     pred_pairs = _get_diacritic_pairs(predicted)
     ref_pairs = _get_diacritic_pairs(reference)
-
-    total = 0
-    errors = 0
-    for (pc, pd), (rc, rd) in zip(pred_pairs, ref_pairs):
-        if pc != rc:
-            continue  # skip misaligned characters
-        total += 1
-        if pd != rd:
-            errors += 1
-
-    return errors / total if total > 0 else 0.0
+    if [p[0] for p in pred_pairs] != [r[0] for r in ref_pairs]:
+        raise ValueError("DER requires identical base text; prediction changed or lost content")
+    eligible = [(p, r) for p, r in zip(pred_pairs, ref_pairs) if _is_arabic_letter(r[0])]
+    return sum(p[1] != r[1] for p, r in eligible) / len(eligible) if eligible else 0.0
 
 
 def compute_wer(predicted: str, reference: str) -> float:
-    """Word Error Rate: fraction of words where diacritization differs."""
-    pred_words = predicted.split()
-    ref_words = reference.split()
-
-    total = max(len(pred_words), len(ref_words))
-    if total == 0:
-        return 0.0
-
-    errors = 0
-    for pw, rw in zip(pred_words, ref_words):
-        if pw != rw:
-            errors += 1
-    errors += abs(len(pred_words) - len(ref_words))
-
-    return errors / total
+    """Word edit distance / reference words; insertions can make WER exceed 1."""
+    predicted_words = unicodedata.normalize("NFC", predicted).split()
+    reference_words = unicodedata.normalize("NFC", reference).split()
+    row = list(range(len(reference_words) + 1))
+    for i, word in enumerate(predicted_words, 1):
+        new = [i]
+        for j, ref in enumerate(reference_words, 1):
+            new.append(min(new[-1] + 1, row[j] + 1, row[j - 1] + (word != ref)))
+        row = new
+    return row[-1] / max(1, len(reference_words))
 
 
-# ---------------------------------------------------------------------------
-# Evaluation runners
-# ---------------------------------------------------------------------------
+def evaluate(mode: str) -> tuple[float, float]:
+    corpus = json.loads((_DATA / "diacritics.json").read_text(encoding="utf-8"))
+    parser = None
+    if mode != "dictionary":
+        parser = ArabicTextOutputParser(backend="catt", catt_model=mode, convert_numbers=False)
+    errors, letters, word_errors, words = 0.0, 0, 0.0, 0
+    for text, reference in corpus:
+        assert re.sub("[" + "".join(_DIACRITICS) + "]", "", reference) == text
+        predicted = parser.parse(text) if parser else apply_diacritics(text, DICTIONARY)
+        letter_count = sum(_is_arabic_letter(c) for c in text)
+        word_count = len(reference.split())
+        errors += compute_der(predicted, reference) * letter_count
+        letters += letter_count
+        word_errors += compute_wer(predicted, reference) * word_count
+        words += word_count
+    return errors / letters, word_errors / words
 
 
-def evaluate_dictionary_mode() -> tuple[float, float, float]:
-    """Evaluate dictionary-only diacritization."""
-    ders, wers = [], []
-    start = time.perf_counter()
-
-    for undiacritized, reference in TEST_CORPUS:
-        predicted = apply_diacritics(undiacritized, DICTIONARY)
-        ders.append(compute_der(predicted, reference))
-        wers.append(compute_wer(predicted, reference))
-
-    elapsed = time.perf_counter() - start
-    return sum(ders) / len(ders), sum(wers) / len(wers), elapsed
-
-
-def evaluate_catt_mode(model: str) -> tuple[float, float, float] | None:
-    """Evaluate CATT auto-diacritization. Returns None if CATT not installed."""
-    parser = ArabicTextOutputParser(
-        backend="catt",
-        catt_model=model,
-        convert_numbers=False,
-    )
-
-    ders, wers = [], []
-    start = time.perf_counter()
-
-    try:
-        for undiacritized, reference in TEST_CORPUS:
-            predicted = parser.parse(undiacritized)
-            ders.append(compute_der(predicted, reference))
-            wers.append(compute_wer(predicted, reference))
-    except ImportError:
-        return None
-
-    elapsed = time.perf_counter() - start
-    return sum(ders) / len(ders), sum(wers) / len(wers), elapsed
-
-
-def evaluate_hybrid_mode(model: str) -> tuple[float, float, float] | None:
-    """Evaluate CATT + dictionary overrides. Returns None if CATT not installed."""
-    parser = ArabicTextOutputParser(
-        backend="catt",
-        catt_model=model,
-        diacritics_map=DICTIONARY,
-        convert_numbers=False,
-    )
-
-    ders, wers = [], []
-    start = time.perf_counter()
-
-    try:
-        for undiacritized, reference in TEST_CORPUS:
-            predicted = parser.parse(undiacritized)
-            ders.append(compute_der(predicted, reference))
-            wers.append(compute_wer(predicted, reference))
-    except ImportError:
-        return None
-
-    elapsed = time.perf_counter() - start
-    return sum(ders) / len(ders), sum(wers) / len(wers), elapsed
-
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
+def report(catt: bool = False) -> str:
+    der, wer = evaluate("dictionary")
+    lines = [
+        "# Smoke evaluation results",
+        "",
+        "Hand-authored MIT-licensed examples: 12 diacritization pairs and 24 numeric cases.",
+        "These scores describe this small set only; they are not a general accuracy claim.",
+        "",
+        "| Diacritization mode | DER | WER |",
+        "|---|---:|---:|",
+        f"| Dictionary (4 entries) | {der:.2%} | {wer:.2%} |",
+    ]
+    if catt:
+        for model in ("encoder_only", "encoder_decoder"):
+            der, wer = evaluate(model)
+            lines.append(f"| CATT {model} | {der:.2%} | {wer:.2%} |")
+    else:
+        lines += ["", "CATT was not run. No neural accuracy or speed is claimed."]
+    cases = json.loads((_DATA / "numbers.json").read_text(encoding="utf-8"))
+    correct = 0
+    for case in cases:
+        prediction = convert_numbers_in_text(
+            case["input"], case.get("language", "ar"), dialect=case.get("dialect", "msa")
+        )
+        correct += prediction == case["expected"]
+    lines += [
+        "",
+        "| Number conversion | Exact matches | Accuracy |",
+        "|---|---:|---:|",
+        f"| Hand-checked cases | {correct}/{len(cases)} | {correct / len(cases):.2%} |",
+        "",
+        "See [methodology](README.md) and [data provenance/license](data/README.md).",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def main() -> None:
-    print(f"Corpus: {len(TEST_CORPUS)} sentence pairs")
-    print()
-
-    header = f"{'Mode':<30} {'DER':>8} {'WER':>8} {'Time':>10}"
-    print(header)
-    print("-" * len(header))
-
-    # Dictionary mode (always available)
-    der, wer, elapsed = evaluate_dictionary_mode()
-    print(f"{'Dictionary only':<30} {der:>7.1%} {wer:>7.1%} {elapsed:>9.3f}s")
-
-    # CATT modes (optional)
-    for model in ("encoder_only", "encoder_decoder"):
-        result = evaluate_catt_mode(model)
-        label = f"CATT {model}"
-        if result is None:
-            print(f"{label:<30} {'(not installed)':>28}")
-        else:
-            der, wer, elapsed = result
-            print(f"{label:<30} {der:>7.1%} {wer:>7.1%} {elapsed:>9.3f}s")
-
-    # Hybrid modes (optional)
-    for model in ("encoder_only", "encoder_decoder"):
-        result = evaluate_hybrid_mode(model)
-        label = f"Hybrid (CATT {model} + dict)"
-        if result is None:
-            print(f"{label:<30} {'(not installed)':>28}")
-        else:
-            der, wer, elapsed = result
-            print(f"{label:<30} {der:>7.1%} {wer:>7.1%} {elapsed:>9.3f}s")
-
-    print()
-    print("DER = Diacritization Error Rate (lower is better)")
-    print("WER = Word Error Rate (lower is better)")
+    cli = argparse.ArgumentParser(description=__doc__)
+    cli.add_argument("--catt", action="store_true", help="Run neural models (may download weights)")
+    cli.add_argument("--output", type=Path, help="Write Markdown results")
+    cli.add_argument("--check", action="store_true", help="Check committed offline results")
+    args = cli.parse_args()
+    if args.check and (args.catt or args.output):
+        cli.error("--check must run offline without --catt or --output")
+    result = report(args.catt)
+    if args.check:
+        if result != _RESULTS.read_text(encoding="utf-8"):
+            raise SystemExit("Benchmark results changed; rerun with --output benchmarks/results.md")
+        print("Committed benchmark results match.")
+    elif args.output:
+        args.output.write_text(result, encoding="utf-8")
+    else:
+        print(result, end="")
 
 
 if __name__ == "__main__":
