@@ -17,14 +17,25 @@ def _has_arabic(text: str) -> bool:
 
 _FORMAT_PATTERNS = [
     # Most specific first — Unicode arrow (current format)
-    re.compile(r"^-?\s*(.+?)\s*→\s*(.+?)\s*$", re.MULTILINE),
+    re.compile(r"^-?[^\S\r\n]*(.+?)[^\S\r\n]*→[^\S\r\n]*(.+?)[^\S\r\n]*$", re.MULTILINE),
     # ASCII arrow
-    re.compile(r"^-?\s*(.+?)\s*->\s*(.+?)\s*$", re.MULTILINE),
+    re.compile(r"^-?[^\S\r\n]*(.+?)[^\S\r\n]*->[^\S\r\n]*(.+?)[^\S\r\n]*$", re.MULTILINE),
     # Tab-separated (unambiguous — tabs rarely appear elsewhere)
-    re.compile(r"^-?\s*(.+?)\t(.+?)\s*$", re.MULTILINE),
+    re.compile(r"^-?[^\S\r\n]*(.+?)\t(.+?)[^\S\r\n]*$", re.MULTILINE),
     # Colon (most ambiguous — tried last, both sides must be Arabic)
-    re.compile(r"^-?\s*(.+?)\s*:\s*(.+?)\s*$", re.MULTILINE),
+    re.compile(r"^-?[^\S\r\n]*(.+?)[^\S\r\n]*:[^\S\r\n]*(.+?)[^\S\r\n]*$", re.MULTILINE),
 ]
+
+_MARKS = r"[\u064b-\u0652\u0670]"
+
+
+def _validate_mapping(mapping: Dict[str, str]) -> None:
+    if any(
+        not isinstance(key, str) or not re.sub(_MARKS, "", key).strip()
+        or not isinstance(value, str) or not value.strip()
+        for key, value in mapping.items()
+    ):
+        raise ValueError("Diacritics mappings require nonempty string keys and values")
 
 
 def _try_parse_with_patterns(text: str) -> Dict[str, str]:
@@ -58,7 +69,7 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
     Parameters
     ----------
     source
-        - **dict**: returned as-is (identity shortcut).
+        - **dict**: validated and copied.
         - **str that is an existing file path**: read the file, then parse.
         - **str (markdown/text)**: auto-detects format and parses pairs.
           Supported formats: ``→``, ``->``, ``:``, tab-separated.
@@ -69,6 +80,7 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
         Mapping of plain Arabic words to their diacritized forms.
     """
     if isinstance(source, dict):
+        _validate_mapping(source)
         return dict(source)
 
     text = source
@@ -95,8 +107,8 @@ def parse_diacritics_map(source: Union[str, Dict[str, str]]) -> Dict[str, str]:
 def apply_diacritics(text: str, diacritics_map: Dict[str, str]) -> str:
     """Replace plain Arabic words with diacritized forms.
 
-    Processes longer keys first to prevent partial-match conflicts
-    (e.g. ``"علم الحاسوب"`` is replaced before ``"علم"``).
+    Matches whole words/phrases, ignoring existing Arabic vowel marks.
+    Longer keys take priority; replacements are applied in a single pass.
 
     Parameters
     ----------
@@ -113,12 +125,14 @@ def apply_diacritics(text: str, diacritics_map: Dict[str, str]) -> str:
     if not diacritics_map or not text:
         return text
 
-    for plain, diacritized in sorted(
-        diacritics_map.items(), key=lambda x: len(x[0]), reverse=True
-    ):
-        text = text.replace(plain, diacritized)
-
-    return text
+    _validate_mapping(diacritics_map)
+    normalized = {re.sub(_MARKS, "", key): value for key, value in diacritics_map.items()}
+    alternatives = [
+        "".join(re.escape(char) + _MARKS + "*" for char in key)
+        for key in sorted(normalized, key=len, reverse=True)
+    ]
+    pattern = r"(?<![\w\u064b-\u0652\u0670])(?:" + "|".join(alternatives) + r")(?!\w)"
+    return re.sub(pattern, lambda match: normalized[re.sub(_MARKS, "", match[0])], text)
 
 
 class DiacriticsProcessor:
