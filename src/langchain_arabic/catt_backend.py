@@ -2,7 +2,7 @@
 
 Wraps ``catt-tashkeel`` (a character-level Arabic tashkeel transformer) behind
 a lazy-import boundary so that users who only need dictionary mode never pull
-in PyTorch.
+in the neural runtime.
 
 Install with::
 
@@ -12,22 +12,26 @@ Install with::
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+import re
+import threading
+from typing import Any, List, Optional, Protocol
 
 logger = logging.getLogger(__name__)
 
 _CATT_IMPORT_ERROR: Optional[ImportError] = None
 
-try:
-    from catt_tashkeel import CATTEncoderDecoder, CATTEncoderOnly
-except ImportError as _exc:
-    _CATT_IMPORT_ERROR = _exc
-    CATTEncoderOnly = None  # type: ignore[assignment,misc]
-    CATTEncoderDecoder = None  # type: ignore[assignment,misc]
+CATTEncoderOnly: Any = None
+CATTEncoderDecoder: Any = None
 
 
 def _check_catt_installed() -> None:
     """Raise a helpful error if *catt-tashkeel* is not installed."""
+    global CATTEncoderOnly, CATTEncoderDecoder, _CATT_IMPORT_ERROR
+    if _CATT_IMPORT_ERROR is None and CATTEncoderOnly is None:
+        try:
+            from catt_tashkeel import CATTEncoderDecoder, CATTEncoderOnly
+        except ImportError as exc:
+            _CATT_IMPORT_ERROR = exc
     if _CATT_IMPORT_ERROR is not None:
         raise ImportError(
             "catt-tashkeel is required for the 'catt' backend. "
@@ -38,6 +42,23 @@ def _check_catt_installed() -> None:
 
 
 _VALID_MODELS = {"encoder_only", "encoder_decoder"}
+_ARABIC_LETTER = r"[\u0621-\u063a\u0641-\u064a]"
+_VOCALIZED_LETTER = re.compile(_ARABIC_LETTER + r"[\u064b-\u0652\u0670]*")
+
+
+class _TashkeelModel(Protocol):
+    def do_tashkeel(self, text: str) -> str: ...
+    def do_tashkeel_batch(self, texts: List[str]) -> List[str]: ...
+
+
+def _restore_text(original: str, prediction: str) -> str:
+    """Transfer only vowel marks, retaining original letters and formatting."""
+    source = _VOCALIZED_LETTER.findall(original)
+    predicted = _VOCALIZED_LETTER.findall(prediction)
+    if [word[0] for word in source] != [word[0] for word in predicted]:
+        raise ValueError("CATT changed Arabic base letters; refusing to replace the original text")
+    replacements = iter(predicted)
+    return _VOCALIZED_LETTER.sub(lambda _match: next(replacements), original)
 
 
 class CATTBackend:
@@ -61,19 +82,19 @@ class CATTBackend:
                 f"Choose from: {sorted(_VALID_MODELS)}"
             )
         self._model_name = model
-        self._model: Optional[object] = None
+        self._model: Optional[_TashkeelModel] = None
+        self._load_lock = threading.Lock()
 
-    def _load_model(self) -> object:
+    def _load_model(self) -> _TashkeelModel:
         """Lazy-load the CATT model on first use."""
-        if self._model is None:
-            logger.info(
-                "Loading CATT %s model (first time only — may download weights)...",
-                self._model_name,
-            )
-            if self._model_name == "encoder_only":
-                self._model = CATTEncoderOnly()
-            else:
-                self._model = CATTEncoderDecoder()
+        with self._load_lock:
+            if self._model is None:
+                logger.info("Loading CATT %s model (may download weights)", self._model_name)
+                if self._model_name == "encoder_only":
+                    self._model = CATTEncoderOnly()
+                else:
+                    self._model = CATTEncoderDecoder()
+        assert self._model is not None
         return self._model
 
     @property
@@ -83,14 +104,21 @@ class CATTBackend:
 
     def tashkeel(self, text: str) -> str:
         """Auto-diacritize a single text string."""
-        if not text or not text.strip():
+        if not re.search(_ARABIC_LETTER, text):
             return text
         model = self._load_model()
-        return model.do_tashkeel(text)  # type: ignore[union-attr]
+        return _restore_text(text, model.do_tashkeel(text))
 
     def tashkeel_batch(self, texts: List[str]) -> List[str]:
         """Auto-diacritize a batch of text strings."""
-        if not texts:
-            return []
+        indices = [i for i, text in enumerate(texts) if re.search(_ARABIC_LETTER, text)]
+        if not indices:
+            return list(texts)
         model = self._load_model()
-        return model.do_tashkeel_batch(texts)  # type: ignore[union-attr]
+        predictions = model.do_tashkeel_batch([texts[i] for i in indices])
+        if len(predictions) != len(indices):
+            raise ValueError("CATT returned the wrong number of batch results")
+        result = list(texts)
+        for index, prediction in zip(indices, predictions):
+            result[index] = _restore_text(texts[index], prediction)
+        return result
