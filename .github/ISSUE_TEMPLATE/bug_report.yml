@@ -1,0 +1,25 @@
+name: Bug report
+description: Report incorrect output, an exception, or an integration failure.
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include exact input, configuration, and runnable code. Remove secrets.
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual output
+      description: Explain the Arabic reading or behavior you expect, including dialect if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Package version, Python, OS, langchain-core, num2words, and CATT version if used.
+    validations:
+      required: true

@@ -1,160 +1,75 @@
 ---
 title: langchain-arabic
-description: Arabic text post-processing for LLM outputs — diacritics restoration, number-to-word conversion, and dialect support.
+description: Dictionary diacritics, spoken numbers and an optional neural backend for Arabic LLM output.
 ---
 
 # langchain-arabic
 
-LLMs produce Arabic text without diacritics (tashkeel) 60–70% of the time. This causes mispronunciation in text-to-speech (TTS) pipelines and reduces readability. Numbers in digit form are also read incorrectly by TTS engines.
+This file is a local integration-page draft. It is not evidence of a published
+LangChain integration page.
 
-`langchain-arabic` is a LangChain output parser that post-processes LLM output with:
+`langchain-arabic` provides `ArabicTextOutputParser`, a `langchain-core` output
+parser for caller-supplied diacritics mappings and number-to-word conversion.
+Dictionary processing runs locally without model downloads.
 
-- **Diacritics restoration** — deterministic dictionary replacement or neural auto-diacritization via [catt-tashkeel](https://pypi.org/project/catt-tashkeel/)
-- **Number-to-word conversion** — context-aware (percentage, currency, phone, plain)
-- **Dialect support** — dialect-specific diacritics maps and number phrasing (MSA, Gulf)
+## Setup and usage
 
-## Setup
-
-### Installation
-
-<CodeGroup>
-```bash pip
-pip install -U langchain-arabic
+```bash
+pip install langchain-arabic
 ```
-```bash pip (with neural backend)
-pip install -U "langchain-arabic[catt]"
-```
-</CodeGroup>
-
-## Components
-
-| Component | Package | Description |
-|-----------|---------|-------------|
-| `ArabicTextOutputParser` | `langchain-arabic` | Output parser combining diacritics restoration, number-to-word conversion, and dialect-aware phrasing |
-
-## Usage
-
-### Dictionary-based diacritics
-
-Provide a mapping of plain Arabic words to their diacritized forms. The parser applies longest-first replacement to prevent partial matches.
 
 ```python
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_arabic import ArabicTextOutputParser
 
+llm = FakeListChatModel(responses=["شركة تقنية حققت نسبة 95% نمو"])
 parser = ArabicTextOutputParser(
-    diacritics_map={
-        "تقنية": "تِقْنِيَة",
-        "شركة": "شَرِكَة",
-        "علم الحاسوب": "عِلْمُ الحَاسُوبِ",
-    },
-    convert_numbers=False,
+    diacritics_map={"شركة": "شَرِكَة", "تقنية": "تِقْنِيَّة"},
 )
-
-result = parser.parse("شركة تقنية في علم الحاسوب")
-# "شَرِكَة تِقْنِيَة في عِلْمُ الحَاسُوبِ"
+chain = llm | parser
+result = chain.invoke("كيف كان النمو؟")
+# شَرِكَة تِقْنِيَّة حققت نسبة خمسة و تسعون بالمائة نمو
 ```
 
-### Number-to-word conversion
+The fake chat model requires no API key. Real providers require their own package
+and credentials. Only mapped words receive diacritics in dictionary mode.
 
-Numbers are detected and converted based on context:
+## Configuration
 
-```python
-parser = ArabicTextOutputParser(convert_numbers=True, language="ar")
+| Parameter | Default | Meaning |
+|---|---|---|
+| `backend` | `"dictionary"` | Dictionary replacement or optional `"catt"` |
+| `catt_model` | `"encoder_only"` | Also accepts `"encoder_decoder"`; no accuracy guarantee |
+| `dialect` | `"msa"` | Also accepts `"gulf"`: four substitutions and supplied dialect maps |
+| `diacritics_map` | `{}` | Flat/dialect-keyed dict, existing UTF-8 file path, or mapping text |
+| `convert_numbers` | `True` | Convert supported numeric tokens |
+| `language` | `"ar"` | Arabic or `"en"` number words |
+| `number_contexts` | `None` | All contexts; use a set to select or disable them |
 
-parser.parse("النسبة 95%")
-# "النسبة خمسة و تسعون بالمائة"
+Number contexts: `percentage`, `currency_ar`, `currency_en`, `phone`, `plain`.
+Western/Eastern Arabic digits and signed decimals are supported. Fractional digits
+are spoken individually. No noun agreement, ordinal inference or full dialect
+morphology is provided. Phone-style reading needs an explicit cue/leading `+`,
+or phone-only context for a bare long number.
 
-parser.parse("المبلغ 500 ريال")
-# "المبلغ خمسمائة ريال"
+## Async and streaming
 
-parser.parse("اتصل على 920001234")
-# "اتصل على تسعة اثنان صفر صفر صفر واحد اثنان ثلاثة أربعة"
-```
+`ainvoke` and `abatch` are supported. Both synchronous and asynchronous streams
+buffer the full answer, then yield one processed string. They do not emit processed
+tokens incrementally. Text message blocks are extracted without exposing reasoning
+or image blocks as stringified dictionaries.
 
-### Chain integration
+## Optional CATT
 
-`ArabicTextOutputParser` slots into any LCEL chain as a drop-in replacement for `StrOutputParser`:
+`pip install "langchain-arabic[catt]"` uses upstream `catt-tashkeel` and ONNX GPU
+runtime dependencies on supported Linux/Windows platforms. The extra currently
+cannot resolve on macOS. Models load on first use and may download weights.
+Numbers are converted first, followed by neural diacritization and dictionary
+overrides. The wrapper preserves original content and rejects changed base letters.
+Neural inference and accuracy were not validated for the 0.3.1 preparation.
 
-```python
-from langchain_arabic import ArabicTextOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+## References
 
-prompt = ChatPromptTemplate.from_template(
-    "اشرح {topic} باللغة العربية في جملتين."
-)
-llm = ChatOpenAI(model="gpt-4o-mini")
-parser = ArabicTextOutputParser(
-    diacritics_map={"تقنية": "تِقْنِيَة"},
-    convert_numbers=True,
-)
-
-chain = prompt | llm | parser
-result = chain.invoke({"topic": "الذكاء الاصطناعي"})
-```
-
-<Note>
-The parser buffers all streaming chunks and processes the complete text once the LLM finishes, because diacritics and number conversion require complete words.
-</Note>
-
-### Dialect support
-
-Use the `dialect` parameter for dialect-specific number phrasing and dialect-keyed diacritics maps:
-
-```python
-# Gulf dialect — numbers use Gulf phrasing
-parser = ArabicTextOutputParser(dialect="gulf", convert_numbers=True)
-parser.parse("النسبة 100%")
-# "النسبة مية بالمية" (not "مائة بالمائة")
-
-# Dialect-keyed diacritics maps
-parser = ArabicTextOutputParser(
-    dialect="gulf",
-    diacritics_map={
-        "msa": {"تقنية": "تِقْنِيَة"},
-        "gulf": {"تقنية": "تَقْنِيَّة"},
-    },
-    convert_numbers=False,
-)
-```
-
-Supported dialects: `"msa"` (Modern Standard Arabic, default), `"gulf"` (Khaleeji).
-
-### CATT neural backend
-
-For full auto-diacritization without a manual dictionary (requires `pip install langchain-arabic[catt]`):
-
-```python
-parser = ArabicTextOutputParser(
-    backend="catt",
-    catt_model="encoder_only",  # or "encoder_decoder" for higher accuracy
-)
-
-result = parser.parse("نص عربي بدون تشكيل")
-```
-
-Hybrid mode applies dictionary overrides after neural diacritization — useful for proper nouns and brand names:
-
-```python
-parser = ArabicTextOutputParser(
-    backend="catt",
-    diacritics_map={"شركتنا": "شَرِكَتُنَا"},
-)
-```
-
-## Configuration reference
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `backend` | `str` | `"dictionary"` | `"dictionary"` or `"catt"` |
-| `catt_model` | `str` | `"encoder_only"` | `"encoder_only"` or `"encoder_decoder"` |
-| `dialect` | `str` | `"msa"` | `"msa"` or `"gulf"` |
-| `diacritics_map` | `dict \| str` | `{}` | Word mappings (dict, file path, or text) |
-| `convert_numbers` | `bool` | `True` | Convert digits to words |
-| `language` | `str` | `"ar"` | `"ar"` or `"en"` |
-| `number_contexts` | `set \| None` | `None` | Contexts to convert (`None` = all) |
-
-## Related
-
+- [Package documentation](https://github.com/louaychoum/langchain-arabic#readme)
 - [PyPI](https://pypi.org/project/langchain-arabic/)
-- [GitHub](https://github.com/louaychoum/langchain-arabic)
+- [Evaluation data and method](https://github.com/louaychoum/langchain-arabic/tree/v0.3.1/benchmarks)

@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a focused processing rule or integration improvement.
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: What current task cannot be completed?
+    validations:
+      required: true
+  - type: textarea
+    id: examples
+    attributes:
+      label: Input and expected output
+      description: Include dialect, linguistic rationale, and edge cases. Cite sources when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility
+      description: Should this be opt-in? Which existing behavior could change?

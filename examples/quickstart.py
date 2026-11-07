@@ -15,7 +15,7 @@ DIACRITICS_MAP = {
 }
 
 
-def demo_dictionary_mode():
+def demo_dictionary_mode() -> None:
     """Dictionary-based diacritics (no PyTorch needed)."""
     print("=" * 60)
     print("1. DICTIONARY MODE")
@@ -27,7 +27,7 @@ def demo_dictionary_mode():
     print()
 
 
-def demo_numbers():
+def demo_numbers() -> None:
     """Number-to-word conversion with context detection."""
     print("=" * 60)
     print("2. NUMBER CONVERSION")
@@ -46,7 +46,7 @@ def demo_numbers():
     print()
 
 
-def demo_catt_mode():
+def demo_catt_mode() -> None:
     """Neural auto-diacritization with CATT (requires pip install langchain-arabic[catt])."""
     print("=" * 60)
     print("3. CATT AUTO-DIACRITIZATION")
@@ -68,7 +68,7 @@ def demo_catt_mode():
     print()
 
 
-def demo_hybrid_mode():
+def demo_hybrid_mode() -> None:
     """CATT + dictionary overrides for proper nouns."""
     print("=" * 60)
     print("4. HYBRID MODE (CATT + dictionary overrides)")
@@ -92,7 +92,7 @@ def demo_hybrid_mode():
     print()
 
 
-def demo_output_parser():
+def demo_output_parser() -> None:
     """ArabicTextOutputParser in dictionary mode (no LangChain LLM needed)."""
     print("=" * 60)
     print("5. OUTPUT PARSER (dictionary mode, standalone)")
@@ -112,6 +112,4 @@ def demo_output_parser():
 if __name__ == "__main__":
     demo_dictionary_mode()
     demo_numbers()
-    demo_catt_mode()
-    demo_hybrid_mode()
     demo_output_parser()
