@@ -134,7 +134,11 @@ def apply_diacritics(text: str, diacritics_map: Dict[str, str]) -> str:
         "".join(re.escape(char) + _MARKS + "*" for char in key)
         for key in sorted(normalized, key=len, reverse=True)
     ]
-    pattern = r"(?<![\w\u064b-\u0652\u0670])(?:" + "|".join(alternatives) + r")(?!\w)"
+    pattern = (
+        r"(?<![\w\u064b-\u0652\u0670])(?:"
+        + "|".join(alternatives)
+        + r")(?![\w\u064b-\u0652\u0670])"
+    )
     return re.sub(pattern, lambda match: normalized[re.sub(_MARKS, "", match[0])], text)
 
 

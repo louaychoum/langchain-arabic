@@ -19,6 +19,8 @@
   executor. Both stream variants still buffer and emit one final result.
 - Resolve changed parser dictionaries/dialects when processing instead of retaining
   a stale internal map.
+- Match phone cues as whole words even after dictionary diacritization, and keep
+  vowel marks from allowing a partial dictionary match inside a longer word.
 - Load CATT lazily and once per cached model under concurrent initialization.
   Transfer vowel marks without deleting original non-Arabic content or formatting;
   raise if predictions change Arabic base letters or return an invalid batch count.

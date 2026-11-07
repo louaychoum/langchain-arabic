@@ -158,3 +158,11 @@ def test_unsupported_magnitude_is_preserved():
     text = "9" * 100
     with pytest.warns(UserWarning, match="retained unchanged"):
         assert convert_numbers_in_text(text) == text
+
+
+def test_phone_cue_must_be_a_whole_word():
+    assert convert_numbers_in_text("recall 1000000", "en") == "recall one million"
+    assert (
+        convert_numbers_in_text("recall 1000000", "en", contexts={"phone", "percentage"})
+        == "recall 1000000"
+    )

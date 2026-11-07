@@ -461,3 +461,12 @@ def test_backend_cache_keeps_each_model_once(monkeypatch):
         assert backend.call_count == 2
         assert backend.call_args_list[0].kwargs == {"model": "encoder_only"}
         assert backend.call_args_list[1].kwargs == {"model": "encoder_decoder"}
+
+
+@pytest.mark.parametrize("cue", ["هاتف", "جوال", "اتصل على"])
+def test_diacritized_phone_cue_still_selects_digit_reading(cue):
+    mapping = {"هاتف": "هَاتِف", "جوال": "جَوَّال", "اتصل على": "اِتَّصِلْ عَلَى"}
+    parser = ArabicTextOutputParser(diacritics_map=mapping)
+    assert parser.parse(f"{cue}: 1234567") == (
+        f"{mapping[cue]}: واحد اثنان ثلاثة أربعة خمسة ستة سبعة"
+    )

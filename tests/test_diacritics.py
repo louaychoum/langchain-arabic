@@ -211,3 +211,8 @@ def test_invalid_dictionary_is_rejected(mapping):
 
 def test_incomplete_mapping_does_not_consume_next_line():
     assert parse_diacritics_map("تقنية ->\nشركة -> شَرِكَة") == {"شركة": "شَرِكَة"}
+
+
+def test_vocalized_longer_word_is_not_partially_replaced():
+    text = "عِلْمُه عِلْم"
+    assert apply_diacritics(text, {"علم": "عَلَم"}) == "عِلْمُه عَلَم"

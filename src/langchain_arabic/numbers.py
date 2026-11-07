@@ -19,7 +19,7 @@ _NUMBER = re.compile(
     r"(?!\w|[.٫]\d)"
 )
 _PHONE_CUE = re.compile(
-    r"(?:اتصل(?: على)?|هاتف|جوال|phone|tel|call)[ \t]*[:：]?[ \t]*$", re.IGNORECASE
+    r"(?<!\w)(?:اتصل(?: على)?|هاتف|جوال|phone|tel|call)[ \t]*[:：]?[ \t]*$", re.IGNORECASE
 )
 
 
@@ -88,7 +88,7 @@ def convert_numbers_in_text(
             context = "currency_en"
         elif re.fullmatch(r"\+?\d{7,15}", number) and (
             number.startswith("+")
-            or _PHONE_CUE.search(text[: match.start()])
+            or _PHONE_CUE.search(re.sub(r"[\u064b-\u0652\u0670]", "", text[: match.start()]))
             or enabled == {"phone"}
         ):
             context = "phone"
