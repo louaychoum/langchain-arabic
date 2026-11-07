@@ -1,7 +1,7 @@
 # langchain-arabic
 
 [![PyPI](https://img.shields.io/pypi/v/langchain-arabic.svg)](https://pypi.org/project/langchain-arabic/)
-[![Downloads](https://static.pepy.tech/badge/langchain-arabic)](https://pepy.tech/projects/langchain-arabic)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/langchain-arabic?period=total&units=INTERNATIONAL_SYSTEM&left_color=GREY&right_color=RED&left_text=downloads)](https://pepy.tech/projects/langchain-arabic)
 [![CI](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml/badge.svg)](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -57,8 +57,8 @@ chat model, and parser chain with assertions for invocation and streaming.
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.3.1/examples/quickstart.ipynb)
 
 The [notebook](examples/quickstart.ipynb) installs the package, runs without keys,
-and covers dialects, decimals, and async use. Its version-tagged Colab link
-becomes available once `v0.3.1` is pushed.
+and covers dialects, decimals, and async use. The Colab link uses the published
+`v0.3.1` tag.
 
 ## Features and limits
 

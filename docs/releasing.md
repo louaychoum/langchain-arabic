@@ -36,7 +36,7 @@ and run an LCEL example outside the source tree.
 If the branch has not been pushed yet:
 
 ```bash
-git push -u origin v0.3.1
+git push -u origin refs/heads/v0.3.1
 ```
 
 After the intended release commit is approved (and merged if using a PR), tag
