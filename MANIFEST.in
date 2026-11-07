@@ -1,0 +1,10 @@
+include CHANGELOG.md CONTRIBUTING.md CODE_OF_CONDUCT.md
+include .github/workflows/*.yml
+include .github/PULL_REQUEST_TEMPLATE.md
+recursive-include .github/ISSUE_TEMPLATE *.yml
+graft benchmarks
+graft examples
+graft docs
+graft docs-pr
+graft tests
+global-exclude __pycache__ *.py[cod]
