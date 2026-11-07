@@ -448,3 +448,16 @@ def test_changed_dialect_and_mapping_are_used():
 def test_invalid_number_configuration_is_rejected(options):
     with pytest.raises(ValueError):
         ArabicTextOutputParser(**options)
+
+
+def test_backend_cache_keeps_each_model_once(monkeypatch):
+    import langchain_arabic.output_parser as module
+
+    monkeypatch.setattr(module, "_CATT_CACHE", {})
+    with patch("langchain_arabic.catt_backend.CATTBackend") as backend:
+        first = module._get_catt_backend("encoder_only")
+        assert module._get_catt_backend("encoder_only") is first
+        module._get_catt_backend("encoder_decoder")
+        assert backend.call_count == 2
+        assert backend.call_args_list[0].kwargs == {"model": "encoder_only"}
+        assert backend.call_args_list[1].kwargs == {"model": "encoder_decoder"}

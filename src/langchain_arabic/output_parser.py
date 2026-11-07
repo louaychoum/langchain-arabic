@@ -16,7 +16,7 @@ Supports two diacritization backends:
 from __future__ import annotations
 
 import threading
-from typing import Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
 
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import BaseTransformOutputParser
@@ -29,7 +29,10 @@ from langchain_arabic.dialects import (
 )
 from langchain_arabic.numbers import _validate_number_config, convert_numbers_in_text
 
-_CATT_CACHE: Dict[str, Any] = {}
+if TYPE_CHECKING:
+    from langchain_arabic.catt_backend import CATTBackend
+
+_CATT_CACHE: Dict[str, CATTBackend] = {}
 _CATT_LOCK = threading.Lock()
 
 _VALID_BACKENDS = {"dictionary", "catt"}
@@ -47,7 +50,7 @@ def _chunk_text(chunk: Union[str, BaseMessage]) -> str:
     )
 
 
-def _get_catt_backend(model: str) -> Any:
+def _get_catt_backend(model: str) -> CATTBackend:
     """Return a cached :class:`CATTBackend` for *model*."""
     if model not in _CATT_CACHE:
         with _CATT_LOCK:
