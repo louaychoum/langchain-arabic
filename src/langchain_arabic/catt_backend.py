@@ -12,7 +12,7 @@ Install with::
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class CATTBackend:
         model = self._load_model()
         return model.do_tashkeel(text)  # type: ignore[union-attr]
 
-    def tashkeel_batch(self, texts: List[str]) -> List[str]:
+    def tashkeel_batch(self, texts: list[str]) -> list[str]:
         """Auto-diacritize a batch of text strings."""
         if not texts:
             return []

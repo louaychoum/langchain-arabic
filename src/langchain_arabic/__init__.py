@@ -16,15 +16,15 @@ from langchain_arabic.numbers import NumbersProcessor, convert_numbers_in_text
 from langchain_arabic.output_parser import ArabicTextOutputParser
 
 __all__ = [
-    "__version__",
-    "apply_dialect_number_overrides",
-    "apply_diacritics",
+    "SUPPORTED_DIALECTS",
     "ArabicTextOutputParser",
     "CATTBackend",
-    "convert_numbers_in_text",
     "DiacriticsProcessor",
     "NumbersProcessor",
+    "__version__",
+    "apply_diacritics",
+    "apply_dialect_number_overrides",
+    "convert_numbers_in_text",
     "parse_diacritics_map",
     "resolve_dialect_diacritics_map",
-    "SUPPORTED_DIALECTS",
 ]

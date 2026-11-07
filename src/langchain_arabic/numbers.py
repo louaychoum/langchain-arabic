@@ -7,11 +7,10 @@ currency, phone, plain), and converts them to words using ``num2words``.
 from __future__ import annotations
 
 import re
-from typing import List, Set
 
 from num2words import num2words
 
-_PATTERNS: List[tuple] = [
+_PATTERNS: list[tuple] = [
     # Percentage: 95% or 95 %
     (re.compile(r"(\d[\d,]*\.?\d*)\s*[%٪]"), "percentage", 1),
     # Currency (Arabic): 500 ريال / درهم / دينار
@@ -56,7 +55,7 @@ def convert_numbers_in_text(
     text: str,
     language: str = "ar",
     *,
-    contexts: Set[str] | None = None,
+    contexts: set[str] | None = None,
 ) -> str:
     """Replace digit sequences in *text* with their word equivalents.
 
@@ -133,7 +132,7 @@ class NumbersProcessor:
     def __init__(
         self,
         language: str = "ar",
-        contexts: Set[str] | None = None,
+        contexts: set[str] | None = None,
     ) -> None:
         self._language = language
         self._contexts = contexts

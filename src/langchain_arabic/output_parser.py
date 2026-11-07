@@ -16,7 +16,8 @@ Supports two diacritization backends:
 from __future__ import annotations
 
 import threading
-from typing import Any, AsyncIterator, Dict, Iterator, Optional, Set, Union
+from collections.abc import AsyncIterator, Iterator
+from typing import Any, Optional, Union
 
 from langchain_core.output_parsers import BaseTransformOutputParser
 from pydantic import Field, PrivateAttr, model_validator
@@ -29,7 +30,7 @@ from langchain_arabic.dialects import (
 )
 from langchain_arabic.numbers import convert_numbers_in_text
 
-_CATT_CACHE: Dict[str, Any] = {}
+_CATT_CACHE: dict[str, Any] = {}
 _CATT_LOCK = threading.Lock()
 
 _VALID_BACKENDS = {"dictionary", "catt"}
@@ -87,14 +88,14 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
     backend: str = "dictionary"
     catt_model: str = "encoder_only"
     dialect: str = "msa"
-    diacritics_map: Union[str, Dict[str, str], Dict[str, Dict[str, str]]] = Field(
+    diacritics_map: Union[str, dict[str, str], dict[str, dict[str, str]]] = Field(
         default_factory=dict,
     )
     convert_numbers: bool = True
     language: str = "ar"
-    number_contexts: Optional[Set[str]] = None
+    number_contexts: Optional[set[str]] = None
 
-    _resolved_map: Dict[str, str] = PrivateAttr(default_factory=dict)
+    _resolved_map: dict[str, str] = PrivateAttr(default_factory=dict)
 
     @model_validator(mode="after")
     def _validate_config(self) -> ArabicTextOutputParser:
@@ -125,7 +126,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
     @classmethod
     def for_tts_fixes(
         cls,
-        fixes: Union[str, Dict[str, str]],
+        fixes: Union[str, dict[str, str]],
         convert_numbers: bool = True,
         language: str = "ar",
         dialect: str = "msa",

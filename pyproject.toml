@@ -25,7 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 catt = ["catt-tashkeel>=0.1.0"]
-dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.23.0", "ruff>=0.4.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "pytest-asyncio>=0.23.0", "ruff==0.17.4"]
 
 [project.urls]
 Repository = "https://github.com/louaychoum/langchain-arabic"
@@ -45,3 +45,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
+# Keep Union/Optional for runtime annotation evaluation on Python 3.9.
+ignore = ["UP007", "UP045"]
