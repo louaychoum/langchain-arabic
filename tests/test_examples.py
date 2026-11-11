@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from langchain_arabic import __version__
+
 
 @pytest.mark.asyncio
 async def test_notebook_cells():
@@ -18,7 +20,7 @@ async def test_notebook_cells():
             continue
         source = "".join(cell["source"])
         if source.startswith("%pip"):
-            assert source.strip() == '%pip -q install "langchain-arabic==0.3.1"'
+            assert source.strip() == f'%pip -q install "langchain-arabic=={__version__}"'
             install_cells += (
                 1  # Test the local package; PyPI publication is a separate release action.
             )

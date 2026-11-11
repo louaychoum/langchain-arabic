@@ -24,3 +24,19 @@ def test_wer_uses_edit_distance_and_reference_length():
     assert compute_wer("بَّ", "بَّ") == 0
     assert compute_wer("", "") == 0
     assert compute_wer("أ ب ج", "أ") == 2
+
+
+def test_speech_report_counts_mismatches_as_failures(tmp_path, monkeypatch):
+    from benchmarks import evaluate_speech
+
+    data = tmp_path / "speech.json"
+    data.write_text(
+        '[{"category":"test","input":"5","expected":"wrong"},'
+        '{"category":"test","input":"","expected":""}]',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(evaluate_speech, "_DATA", data)
+    report, passed = evaluate_speech.report()
+    assert not passed
+    assert "| test | 1/2 |" in report
+    assert "Failed inputs:" in report

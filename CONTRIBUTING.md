@@ -26,7 +26,9 @@ ruff format --check src tests examples benchmarks
 mypy
 pytest --cov=langchain_arabic --cov-branch --cov-report=term-missing
 python benchmarks/evaluate_diacritics.py --check
+python benchmarks/evaluate_speech.py --check
 python examples/langchain_chain.py
+python examples/speech_chain.py
 ```
 
 Use `ruff format src tests examples benchmarks` to format changed Python files.

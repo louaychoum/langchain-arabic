@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.3.1 — Unreleased
+## 0.4.0 — 2026-11-11
+
+- Add opt-in `ArabicSpeechNormalizer` for validated Gregorian dates, explicit
+  date ordering, 24-hour times, digit-preserving identifiers, decimal amounts
+  and Arabic labels for SAR/USD/AED/QAR. Existing conversion APIs are unchanged.
+- Add exact protected terms and conservative retention of structured tokens,
+  plus source-offset decisions through `SpeechResult` and `SpeechChange`.
+- Add a key-free LCEL speech example, sync/async integration tests, policy docs
+  and 30 synthetic text fixtures with a reproducible offline report. These are
+  text regression checks; no new audio-quality or dialect claim is made.
+
+## 0.3.1 — 2026-11-07
 
 ### Fixed
 

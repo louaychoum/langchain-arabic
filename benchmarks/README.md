@@ -1,5 +1,12 @@
 # Reproducible smoke evaluation
 
+For the unreleased speech-input milestone, run
+`python benchmarks/evaluate_speech.py --check`. Its
+[30 synthetic-fixture results](speech-results.md) measure exact output strings,
+including intentional retention, separately from diacritization. Regenerate with
+`python benchmarks/evaluate_speech.py --output benchmarks/speech-results.md`.
+See [scope and limitations](../docs/speech-normalization.md).
+
 ```bash
 python -m pip install -e ".[dev]"
 python benchmarks/evaluate_diacritics.py

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "langchain-arabic"
 dynamic = ["version"]
-description = "Arabic text post-processing for LLM outputs — diacritics restoration, number-to-word conversion, dialect support, and LangChain integration"
+description = "Inspectable Arabic speech preparation, targeted diacritics, number-to-word conversion, and LangChain integration"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"

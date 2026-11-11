@@ -39,13 +39,16 @@ If the branch has not been pushed yet:
 git push -u origin refs/heads/v0.3.1
 ```
 
-After the intended release commit is approved (and merged if using a PR), tag
-that exact commit. If tagging directly from the prepared branch:
+After the intended release commit is approved and merged, fetch and inspect the
+default branch. Tag the exact verified commit; do not use the ambiguous branch
+and tag name `v0.3.1` as a release target:
 
 ```bash
-git switch v0.3.1
-git tag -a v0.3.1 -m "Release 0.3.1"
-git push origin refs/tags/v0.3.1
+git fetch origin master
+git show --stat refs/remotes/origin/master
+# Confirm this is the reviewed 0.4.0 commit and its CI has passed.
+git tag -a v0.4.0 -m "Release 0.4.0" refs/remotes/origin/master
+git push origin refs/tags/v0.4.0
 ```
 
 The release workflow reruns CI, verifies tag/version agreement, builds a wheel and
