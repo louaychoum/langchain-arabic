@@ -32,4 +32,6 @@ jobs:
       - run: mypy
       - run: pytest --cov=langchain_arabic --cov-branch --cov-report=term-missing
       - run: python benchmarks/evaluate_diacritics.py --check
+      - run: python benchmarks/evaluate_speech.py --check
       - run: python examples/langchain_chain.py
+      - run: python examples/speech_chain.py

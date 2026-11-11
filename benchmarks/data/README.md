@@ -14,3 +14,13 @@ is printed in the evaluation script. The references include case endings.
 
 A later external-corpus evaluation must record the exact source revision,
 license, preprocessing, split and dictionary provenance before publishing scores.
+
+## Unreleased speech-input fixtures
+
+`speech.json` adds 30 repository-authored synthetic fixtures under the same MIT
+license. They cover explicit date orders, invalid/ambiguous controls, 24-hour
+times, digit-preserving identifiers, amounts, mixed text and protected structures.
+Expected strings were written for this feature and are not an external held-out
+corpus or an independent native-speaker assessment. Retained controls count as
+exact matches. The script measures text equality only, not intelligibility,
+pronunciation, naturalness or speech-provider quality.

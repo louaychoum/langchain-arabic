@@ -62,6 +62,13 @@ and covers dialects, decimals, and async use. The Colab link uses the published
 
 ## Features and limits
 
+**Unreleased speech-input milestone:** this checkout adds opt-in
+`ArabicSpeechNormalizer` for Gregorian dates, 24-hour times, digit-preserving
+identifiers, decimal amounts, protected spans and source-offset change records.
+It is not in PyPI 0.3.1. See [policy, examples and limits](docs/speech-normalization.md)
+and the [key-free LCEL example](examples/speech_chain.py). Existing APIs retain
+their behavior. These text rules do not establish better audio or a Gulf accent.
+
 | Component | What it does | Limit |
 |---|---|---|
 | Dictionary diacritics | Longest whole-word/phrase match; replaces existing vowel marks | Requires your mappings; no context disambiguation |
