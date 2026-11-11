@@ -1,7 +1,7 @@
 # Arabic speech input milestone
 
-This is an **unreleased**, opt-in API. Install this checkout with
-`python -m pip install -e ".[dev]"`; the published 0.3.1 package does not include it.
+This opt-in API is available from **0.4.0**. Install it with
+`python -m pip install "langchain-arabic>=0.4.0,<0.5"`.
 It leaves the existing `ArabicTextOutputParser`, `NumbersProcessor` and
 `convert_numbers_in_text` behavior unchanged. No additional dependency or model
 is required.
@@ -165,3 +165,17 @@ the final provider audio on your own intended inputs.
 - The targeted audio check generated four new clips and reused two raw clips.
   No independent native-speaker evaluation, CATT inference, hosted CI, tag or
   PyPI publication is included in this local verification.
+
+### 0.4.0 release preflight, November 11, 2026
+
+After the version update, all 236 tests passed again on Python 3.13.9 with 99%
+aggregate line/branch coverage. Ruff lint/format, strict mypy, both evaluation
+checks and both key-free examples passed. Notebook cells include the new speech
+API and are executed by the test suite; hosted Colab execution was not repeated.
+
+Fresh 0.4.0 wheel and source distributions passed `twine check --strict` and
+archive checks for version, typing marker, license, speech source/fixtures/docs
+and exclusion of private work files. A fresh environment installed the wheel
+with `langchain-core` 1.7.7 and Pydantic 2.14.3. Outside the source tree, both LCEL
+examples and identifier, protected-input and signed-amount checks passed. These
+are local release checks; publication must be verified separately against PyPI.

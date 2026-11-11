@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-11
 
 - Add opt-in `ArabicSpeechNormalizer` for validated Gregorian dates, explicit
   date ordering, 24-hour times, digit-preserving identifiers, decimal amounts

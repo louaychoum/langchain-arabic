@@ -5,7 +5,7 @@
 [![CI](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml/badge.svg)](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Add chosen Arabic diacritics and turn digits into spoken words, standalone or at the end of a LangChain chain.
+Prepare Arabic text for speech with inspectable readings for dates, times and identifiers, plus chosen diacritics and LangChain integration.
 
 ```text
 Raw LLM:   شركة تقنية حققت نسبة 95% نمو
@@ -54,23 +54,46 @@ it is not currently published in the LangChain docs.
 Run [`examples/langchain_chain.py`](examples/langchain_chain.py) for a prompt,
 chat model, and parser chain with assertions for invocation and streaming.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.3.1/examples/quickstart.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.4.0/examples/quickstart.ipynb)
 
 The [notebook](examples/quickstart.ipynb) installs the package, runs without keys,
-and covers dialects, decimals, and async use. The Colab link uses the published
-`v0.3.1` tag.
+and covers speech preparation, dialect substitutions, decimals, and async use.
+The Colab link uses the `v0.4.0` tag.
+
+## Speech preparation in 0.4.0
+
+Use `ArabicSpeechNormalizer` when a date, amount or identifier needs an explicit
+reading. Keep the original text for display and storage; send the derived string
+to your speech provider.
+
+```python
+from langchain_arabic import ArabicSpeechNormalizer
+
+normalizer = ArabicSpeechNormalizer()
+result = normalizer.explain("رقم الطلب 001234. المبلغ ١٢٫٥٠ SAR.")
+print(result.text)
+# رقم الطلب صفر صفر واحد اثنان ثلاثة أربعة. المبلغ اثنا عشر فاصلة خمسة صفر ريال سعودي.
+for change in result.changes:
+    print(change.kind, change.original, change.replacement)
+```
+
+The opt-in API recognizes supported Gregorian dates and 24-hour times, preserves
+identifier digits and decimal precision, and records converted or deliberately
+retained spans. Ambiguous dates stay unchanged unless you set `date_order`.
+Use `protected_terms` for values your application must leave untouched.
+
+See [policy, examples and limits](docs/speech-normalization.md) and the
+[key-free LCEL example](examples/speech_chain.py). When combining it with
+`ArabicTextOutputParser` for pronunciation fixes, set `convert_numbers=False`
+on that parser so identifiers reach the normalizer intact. These rules do not
+establish better audio or a Gulf accent; the [targeted audio check](docs/speech-audio-check.md)
+found that raw ElevenLabs input already handled all three examples correctly.
 
 ## Features and limits
 
-**Unreleased speech-input milestone:** this checkout adds opt-in
-`ArabicSpeechNormalizer` for Gregorian dates, 24-hour times, digit-preserving
-identifiers, decimal amounts, protected spans and source-offset change records.
-It is not in PyPI 0.3.1. See [policy, examples and limits](docs/speech-normalization.md)
-and the [key-free LCEL example](examples/speech_chain.py). Existing APIs retain
-their behavior. These text rules do not establish better audio or a Gulf accent.
-
 | Component | What it does | Limit |
 |---|---|---|
+| Speech normalizer | Supported dates/times, digit-preserving IDs, decimal amounts, protection and source-offset decisions | Opt-in; bounded rules; ambiguous formats retained; no incremental streaming |
 | Dictionary diacritics | Longest whole-word/phrase match; replaces existing vowel marks | Requires your mappings; no context disambiguation |
 | Mapping input | Dictionary, existing UTF-8 file path, or text with `→`, `->`, tabs, or `:` | First successful delimiter format wins |
 | Numbers | Arabic/English cardinal words, signed decimals, percentages, currency labels | No noun/gender/case agreement or ordinal inference |
@@ -180,6 +203,7 @@ on a small hand-authored set under the [MIT license](LICENSE):
 |---|---:|
 | Dictionary diacritization, 12 pairs / 4 dictionary entries | DER 63.39%; WER 80.77% |
 | Number conversion, 24 hand-checked cases | 24/24 exact matches (100.00%) |
+| Speech normalization, 30 synthetic fixtures including retained controls | 30/30 exact matches |
 
 These are narrow smoke results. They do not estimate general Arabic accuracy.
 The dictionary overlaps the evaluation set and leaves unknown words unchanged.
@@ -187,13 +211,19 @@ See [offline results](benchmarks/results.md), [methodology](benchmarks/README.md
 and [data provenance](benchmarks/data/README.md). Separate
 [post-release CATT smoke results](benchmarks/catt-results.md) were produced with
 CPU ONNX Runtime; they carry the same small-set limitations.
+Speech results come from [`benchmarks/evaluate_speech.py`](benchmarks/evaluate_speech.py);
+see the [report and scope](benchmarks/speech-results.md). None of these text
+scores measure audio quality.
 
 ```bash
 python benchmarks/evaluate_diacritics.py --check
+python benchmarks/evaluate_speech.py --check
 ```
 
 ## Roadmap
 
+- Add a JSON CLI, a coding-assistant skill and a tested LangGraph example; see
+  the [integration research](docs/agent-integrations-research.md).
 - Evaluate on a versioned external corpus with verified redistribution terms.
 - Add dialect rules with native-speaker examples and regression tests.
 - Cover ordinal/currency grammar explicitly before advertising support.
