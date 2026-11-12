@@ -8,8 +8,8 @@
 Prepare Arabic text for speech with inspectable readings for dates, times and identifiers, plus chosen diacritics and LangChain integration.
 
 ```text
-Raw LLM:   شركة تقنية حققت نسبة 95% نمو
-Processed: شَرِكَة تِقْنِيَّة حققت نسبة خمسة و تسعون بالمائة نمو
+Raw LLM:   هذه شركة تقنية. نسبة النمو: 95%.
+Processed: هذه شَرِكَة تِقْنِيَّة. نسبة النمو: خمسة و تسعون بالمائة.
 ```
 
 Only the words supplied in the dictionary receive diacritics in this example.
@@ -35,13 +35,13 @@ This runnable example uses a fake **chat model** from `langchain-core`:
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_arabic import ArabicTextOutputParser
 
-llm = FakeListChatModel(responses=["شركة تقنية حققت نسبة 95% نمو"])
+llm = FakeListChatModel(responses=["هذه شركة تقنية. نسبة النمو: 95%."])
 parser = ArabicTextOutputParser(
     diacritics_map={"شركة": "شَرِكَة", "تقنية": "تِقْنِيَّة"},
 )
 chain = llm | parser
 print(chain.invoke("كيف كان النمو؟"))
-# شَرِكَة تِقْنِيَّة حققت نسبة خمسة و تسعون بالمائة نمو
+# هذه شَرِكَة تِقْنِيَّة. نسبة النمو: خمسة و تسعون بالمائة.
 ```
 
 Replace the fake chat model with your provider's model to process actual LLM
@@ -179,7 +179,7 @@ parser = ArabicTextOutputParser(
     diacritics_map={"تقنية": "تِقْنِيَّة"},
 )
 # First parse may download model weights.
-result = parser.parse("شركة تقنية حققت نسبة 95% نمو")
+result = parser.parse("هذه شركة تقنية. نسبة النمو: 95%.")
 ```
 
 CATT models load on first use. Number conversion happens before CATT; dictionary
@@ -222,8 +222,10 @@ python benchmarks/evaluate_speech.py --check
 
 ## Roadmap
 
-- Add a JSON CLI, a coding-assistant skill and a tested LangGraph example; see
-  the [integration research](docs/agent-integrations-research.md).
+The next release's [JSON CLI, coding-assistant skill and LangGraph example](docs/agent-integrations.md)
+are available in this checkout and are not included in PyPI 0.4.0. See the
+[integration research](docs/agent-integrations-research.md) for design rationale.
+
 - Evaluate on a versioned external corpus with verified redistribution terms.
 - Add dialect rules with native-speaker examples and regression tests.
 - Cover ordinal/currency grammar explicitly before advertising support.

@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from langchain_arabic import ArabicTextOutputParser
 
-FAKE_RESPONSE = "شركة تقنية حققت نسبة 95% نمو"
+FAKE_RESPONSE = "هذه شركة تقنية. نسبة النمو: 95%."
 DIACRITICS_MAP = {"شركة": "شَرِكَة", "تقنية": "تِقْنِيَّة"}
 
 
@@ -18,7 +18,7 @@ def demo_dictionary_chain() -> None:
     result = chain.invoke({"question": "كيف كان النمو؟"})
     print(f"Raw:       {FAKE_RESPONSE}")
     print(f"Processed: {result}")
-    assert result == "شَرِكَة تِقْنِيَّة حققت نسبة خمسة و تسعون بالمائة نمو"
+    assert result == "هذه شَرِكَة تِقْنِيَّة. نسبة النمو: خمسة و تسعون بالمائة."
     assert list(chain.stream({"question": "كيف كان النمو؟"})) == [result]
 
 
