@@ -1,7 +1,7 @@
 # Arabic speech input milestone
 
 This opt-in API is available from **0.4.0**. Install it with
-`python -m pip install "langchain-arabic>=0.4.0,<0.5"`.
+`python -m pip install "langchain-arabic>=0.5.0,<0.6"`.
 It leaves the existing `ArabicTextOutputParser`, `NumbersProcessor` and
 `convert_numbers_in_text` behavior unchanged. No additional dependency or model
 is required.

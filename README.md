@@ -54,11 +54,11 @@ it is not currently published in the LangChain docs.
 Run [`examples/langchain_chain.py`](examples/langchain_chain.py) for a prompt,
 chat model, and parser chain with assertions for invocation and streaming.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.4.0/examples/quickstart.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.5.0/examples/quickstart.ipynb)
 
 The [notebook](examples/quickstart.ipynb) installs the package, runs without keys,
 and covers speech preparation, dialect substitutions, decimals, and async use.
-The Colab link uses the `v0.4.0` tag.
+The Colab link uses the `v0.5.0` tag.
 
 ## Speech preparation in 0.4.0
 
@@ -222,8 +222,8 @@ python benchmarks/evaluate_speech.py --check
 
 ## Roadmap
 
-The next release's [JSON CLI, coding-assistant skill and LangGraph example](docs/agent-integrations.md)
-are available in this checkout and are not included in PyPI 0.4.0. See the
+The [JSON CLI, coding-assistant skill and LangGraph example](docs/agent-integrations.md)
+are available from 0.5.0. See the
 [integration research](docs/agent-integrations-research.md) for design rationale.
 
 - Evaluate on a versioned external corpus with verified redistribution terms.

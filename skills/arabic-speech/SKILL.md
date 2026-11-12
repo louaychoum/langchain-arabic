@@ -46,7 +46,7 @@ Run the project's checks and report what was actually exercised.
 For non-Python callers, use the documented JSON CLI only if the installed version
 provides it (`python -m langchain_arabic --help`). Pass JSON through subprocess
 stdin with an argument list, without `shell=True`; do not interpolate user text
-into a command. The CLI is not present in published 0.4.0.
+into a command. The CLI requires 0.5.0 or newer.
 
 Scope: bounded MSA readings, not dialect rewriting, grammatical correction,
 accent control or proven improvement over raw TTS. Do not add CATT, an MCP server,

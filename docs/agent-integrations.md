@@ -1,8 +1,10 @@
 # Coding assistants and LangGraph
 
-The JSON CLI, repository skill and LangGraph example below are **unreleased**.
-The `ArabicSpeechNormalizer` Python API is available in PyPI 0.4.0. To exercise
-these additions, install this checkout with `python -m pip install -e ".[dev]"`.
+The JSON CLI is available from **0.5.0**. Install it with
+`python -m pip install "langchain-arabic>=0.5.0,<0.6"`.
+The integration skill and LangGraph example are distributed in the repository;
+use the `v0.5.0` tag for a matching checkout. The `ArabicSpeechNormalizer` Python
+API remains available from 0.4.0.
 
 ## JSON command
 

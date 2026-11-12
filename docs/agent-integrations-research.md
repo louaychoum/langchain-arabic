@@ -6,7 +6,7 @@ outperforms the projects below. Sources are official docs, upstream repositories
 and research-paper abstracts. No competitor accuracy/latency comparison was run.
 
 Implementation update: the JSON CLI, source skill and LangGraph example are now
-implemented in the unreleased checkout; see [usage and limits](agent-integrations.md).
+implemented in 0.5.0; see [usage and limits](agent-integrations.md).
 The proposals below preserve the original rationale. Fresh-host skill activation
 and the docs-only comparison have not been measured.
 

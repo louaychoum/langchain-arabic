@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-11-12
 
 - Add a UTF-8 JSON stdin/stdout command for inspectable speech normalization,
   with input validation, protected terms, date policy and retained-span notices.
