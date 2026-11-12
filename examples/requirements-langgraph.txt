@@ -1,0 +1,2 @@
+# Optional example dependency; Python 3.10+. Not required by langchain-arabic.
+langgraph>=1.0,<2

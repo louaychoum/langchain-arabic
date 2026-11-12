@@ -5,6 +5,11 @@ these integrations are implemented, that demand is proven, or that the package
 outperforms the projects below. Sources are official docs, upstream repositories
 and research-paper abstracts. No competitor accuracy/latency comparison was run.
 
+Implementation update: the JSON CLI, source skill and LangGraph example are now
+implemented in the unreleased checkout; see [usage and limits](agent-integrations.md).
+The proposals below preserve the original rationale. Fresh-host skill activation
+and the docs-only comparison have not been measured.
+
 ## Recommendation
 
 Make the package an inspectable Arabic speech-preparation step that developers

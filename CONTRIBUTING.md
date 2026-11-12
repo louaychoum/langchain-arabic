@@ -31,6 +31,18 @@ python examples/langchain_chain.py
 python examples/speech_chain.py
 ```
 
+For the optional LangGraph example (Python 3.10+):
+
+```bash
+python -m pip install -r examples/requirements-langgraph.txt
+pytest tests/test_langgraph_example.py
+python examples/langgraph_speech.py
+```
+
+CLI tests invoke the real subprocess with UTF-8 JSON stdin/stdout. The default
+coverage command does not collect child-process coverage; do not interpret its
+CLI coverage percentage as the absence of command tests.
+
 Use `ruff format src tests examples benchmarks` to format changed Python files.
 Source type checking is strict. Public APIs ship annotations and `py.typed`.
 Add a focused regression for a bug or new nontrivial rule, including the exact
