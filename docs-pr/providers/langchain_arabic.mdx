@@ -22,13 +22,13 @@ pip install langchain-arabic
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 from langchain_arabic import ArabicTextOutputParser
 
-llm = FakeListChatModel(responses=["شركة تقنية حققت نسبة 95% نمو"])
+llm = FakeListChatModel(responses=["هذه شركة تقنية. نسبة النمو: 95%."])
 parser = ArabicTextOutputParser(
     diacritics_map={"شركة": "شَرِكَة", "تقنية": "تِقْنِيَّة"},
 )
 chain = llm | parser
 result = chain.invoke("كيف كان النمو؟")
-# شَرِكَة تِقْنِيَّة حققت نسبة خمسة و تسعون بالمائة نمو
+# هذه شَرِكَة تِقْنِيَّة. نسبة النمو: خمسة و تسعون بالمائة.
 ```
 
 The fake chat model requires no API key. Real providers require their own package

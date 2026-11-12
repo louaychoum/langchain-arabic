@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-11-12
+
+- Add a UTF-8 JSON stdin/stdout command for inspectable speech normalization,
+  with input validation, protected terms, date policy and retained-span notices.
+- Add a repository-distributed integration skill for coding assistants and a
+  key-free LangGraph booking example that keeps original data separate from
+  speech text and routes recognized ambiguous dates to clarification.
+- Replace the awkward Arabic growth sentence in the README, notebook and chain
+  example with a grammatical sentence and a separate percentage label.
+
 ## 0.4.0 — 2026-11-11
 
 - Add opt-in `ArabicSpeechNormalizer` for validated Gregorian dates, explicit
