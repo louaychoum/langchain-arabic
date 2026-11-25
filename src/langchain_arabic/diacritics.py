@@ -6,6 +6,7 @@ file) and applies longest-first string replacement on Arabic text.
 
 from __future__ import annotations
 
+import functools
 import os
 import re
 from typing import Dict, Union
@@ -130,16 +131,22 @@ def apply_diacritics(text: str, diacritics_map: Dict[str, str]) -> str:
 
     _validate_mapping(diacritics_map)
     normalized = {re.sub(_MARKS, "", key): value for key, value in diacritics_map.items()}
+    pattern = _compile_keys(tuple(sorted(normalized)))
+    return pattern.sub(lambda match: normalized[re.sub(_MARKS, "", match[0])], text)
+
+
+@functools.lru_cache(maxsize=32)
+def _compile_keys(keys: tuple[str, ...]) -> re.Pattern[str]:
+    """Whole-word alternation of *keys*, longest first, tolerating existing vowel marks."""
     alternatives = [
         "".join(re.escape(char) + _MARKS + "*" for char in key)
-        for key in sorted(normalized, key=len, reverse=True)
+        for key in sorted(keys, key=len, reverse=True)
     ]
-    pattern = (
+    return re.compile(
         r"(?<![\w\u064b-\u0652\u0670])(?:"
         + "|".join(alternatives)
         + r")(?![\w\u064b-\u0652\u0670])"
     )
-    return re.sub(pattern, lambda match: normalized[re.sub(_MARKS, "", match[0])], text)
 
 
 class DiacriticsProcessor:

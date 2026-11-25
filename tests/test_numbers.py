@@ -126,6 +126,27 @@ class TestNumbersProcessor:
         ("5. Next", "خمسة. Next"),
         ("X5 v2.0", "X5 v2.0"),
         ("5، 6؛ 7؟", "خمسة، ستة؛ سبعة؟"),
+        # num2words 0.5.14 repeats the scale word for 101-901 groups.
+        ("101000", "مائة ألف و ألف"),
+        ("501,000 ريال", "خمسمائة ألف و ألف ريال"),
+        ("101000000", "مائة مليون و مليون"),
+        ("201000", "مئتا ألف و ألف"),
+        ("101000000000", "مائة مليار و مليار"),
+        ("101000000000000", "مائة تريليون و تريليون"),
+        ("1234567", "مليون و مئتان و أربعة و ثلاثون ألفاً و خمسمائة و سبعة و ستون"),
+        # Attached conjunction (+ optional preposition) or preposition with tatweel.
+        ("بين 5 و10 أيام", "بين خمسة وعشرة أيام"),
+        ("زاد بنسبة 5% و10%", "زاد بنسبة خمسة بالمائة وعشرة بالمائة"),
+        ("دفعت بـ50 ريال", "دفعت بـخمسون ريال"),
+        ("وبـ3 وب3", "وبـثلاثة وب3"),
+        ("كتاب5 ثو10", "كتاب5 ثو10"),
+        ("فيتامين ب12 وك2", "فيتامين ب12 وك2"),
+        # A leading zero marks a phone/ID, also behind a clitic.
+        (
+            "اتصل على 0501234567 و0551234567",
+            "اتصل على صفر خمسة صفر واحد اثنان ثلاثة أربعة خمسة ستة سبعة "
+            "وصفر خمسة خمسة واحد اثنان ثلاثة أربعة خمسة ستة سبعة",
+        ),
     ],
 )
 def test_numeric_edges(text, expected):
@@ -146,6 +167,18 @@ def test_phone_requires_cue_or_explicit_context():
 
 def test_gulf_changes_only_generated_numbers():
     assert convert_numbers_in_text("مائة و 100%", dialect="gulf") == "مائة و مية بالمية"
+    assert convert_numbers_in_text("200 و 1,200", dialect="gulf") == "ميتين و ألف و ميتين"
+
+
+def test_concurrent_conversion_matches_serial():
+    # num2words' Arabic converter stores per-call state on a shared instance.
+    from concurrent.futures import ThreadPoolExecutor
+
+    texts = [f"عام {1900 + i} و {i}% و {i * 1013}" for i in range(400)]
+    serial = [convert_numbers_in_text(t) for t in texts]
+    for _ in range(3):
+        with ThreadPoolExecutor(16) as pool:
+            assert list(pool.map(convert_numbers_in_text, texts)) == serial
 
 
 @pytest.mark.parametrize("options", [{"language": "xx"}, {"contexts": {"typo"}}, {"dialect": "xx"}])

@@ -1,10 +1,9 @@
 # Arabic speech input milestone
 
-This opt-in API is available from **0.4.0**. Install it with
-`python -m pip install "langchain-arabic>=0.5.0,<0.6"`.
-It leaves the existing `ArabicTextOutputParser`, `NumbersProcessor` and
-`convert_numbers_in_text` behavior unchanged. No additional dependency or model
-is required.
+This API is available from **0.4.0**. From **0.6.0**, `ArabicTextOutputParser`
+uses these rules for Arabic numbers by default (`number_contexts=None`);
+`NumbersProcessor` and `convert_numbers_in_text` keep their context-based
+behavior. No additional dependency or model is required.
 
 ## Purpose
 
@@ -54,12 +53,17 @@ Generated words are never matched again in the same pass.
 - **Identifiers:** bare integers beginning with zero, or immediately following
   the configured built-in cues (`رقم`, `رقم الطلب`, `رقم الحجز`, `رقم الحساب`,
   `رمز`, `رمز التحقق`, `معرف`, `order`, `order id`, `booking`, `booking id`,
-  `otp`, `id`), read digit by digit. Cue matching ignores Arabic vowel marks and
+  `otp`, `id`), read digit by digit. After a bare `رقم` (no qualifier), only
+  numbers with four or more digits or a leading zero are identifiers, so
+  `الغرفة رقم 15` reads `خمسة عشر`, unless a phone cue precedes it
+  (`اتصل على رقم 911`). Cue matching ignores Arabic vowel marks and
   English case. A bare `1234` without a cue still reads as a quantity; arbitrary
   identifiers cannot be inferred reliably. Grouped values directly after an ID
   cue, hyphenated numeric chains and mixed letter/digit codes are retained.
-  Phones directly after the existing phone cues read digit by digit, including
-  short emergency numbers; a leading `+` without a cue requires 7–15 digits.
+  Phones directly after the existing phone cues read digit by digit when they
+  have three or more digits, including emergency numbers (`اتصل على 911`);
+  shorter values are counts (`اتصل 10 مرات`). A leading `+` without a cue
+  requires 7–15 digits. Cues farther than about 60 characters are ignored.
   Multi-part identifiers/phones separated by spaces need explicit protection.
 - **Amounts:** decimal fractional digits retain their precision and trailing
   zeros. `SAR`, `USD`, `AED`, `QAR` become Arabic unit labels. Supported Arabic
@@ -70,6 +74,14 @@ Generated words are never matched again in the same pass.
   suffix currency labels and unsupported comma-decimal/grouping forms (such as
   `12,50 SAR`) are retained. Commas denote thousands only in valid three-digit
   groups; decimal separators are `.` or `٫`.
+- **Attached words:** a conjunction (`و10`, `ف5`) or a tatweel-marked
+  preposition (`بـ50`, `وبـ3`) written onto a number is kept and the number is
+  read: `بين 5 و10` becomes `بين خمسة وعشرة`. A bare `ب`/`ك`/`ل` before digits
+  is treated as a code (`فيتامين ب12`, `وب12`). Change offsets point at the
+  digits, not the clitic. Ranges and codes keep their protection (`و3-5`).
+- **Dialect:** `dialect="gulf"` applies the Gulf number word substitutions
+  (`مية`, `ميتين`, `بالمية`) to generated words only; existing prose and
+  protected spans are kept.
 - **Protection:** URLs beginning with `http://`, `https://` or `www.`, email
   addresses, inline/fenced Markdown code, mixed alphanumeric tokens, numeric
   ranges/fractions, dotted IPv4 addresses with optional ports and unrecognized
@@ -97,9 +109,10 @@ TTS input; keep original application data separately for display and storage.
 
 ## LangChain and pronunciation overrides
 
-Run the normalizer after string extraction, and disable the old parser's number
-conversion if using it for pronunciation fixes. Otherwise it could destroy an
-identifier before the new normalizer sees it.
+From 0.6.0, `ArabicTextOutputParser()` alone applies these readings to Arabic
+numbers. Add a separate normalizer stage when you need `explain()` records,
+`date_order` or `protected_terms`; then disable the parser's number conversion
+so the normalizer sees the original digits:
 
 ```python
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
