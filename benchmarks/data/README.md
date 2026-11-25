@@ -17,10 +17,19 @@ license, preprocessing, split and dictionary provenance before publishing scores
 
 ## Unreleased speech-input fixtures
 
-`speech.json` adds 30 repository-authored synthetic fixtures under the same MIT
+`speech.json` adds 34 repository-authored synthetic fixtures under the same MIT
 license. They cover explicit date orders, invalid/ambiguous controls, 24-hour
 times, digit-preserving identifiers, amounts, mixed text and protected structures.
 Expected strings were written for this feature and are not an external held-out
 corpus or an independent native-speaker assessment. Retained controls count as
 exact matches. The script measures text equality only, not intelligibility,
 pronunciation, naturalness or speech-provider quality.
+
+## TTS round-trip cases
+
+`tts_roundtrip.json` holds 22 repository-authored synthetic MSA sentences under
+the same MIT license, each with the values an accurate reading must keep
+(identifiers, phones, amounts, percentages, dates, times and large numbers).
+`|` separates acceptable alternatives such as month names. An entry starting with
+`!` lists wrong readings that must be absent. They target known
+number-reading risks and are not a representative sample of Arabic speech.
