@@ -28,5 +28,9 @@
   {"category": "protected structures", "input": "2026-11-10T09:30:00Z", "expected": "2026-11-10T09:30:00Z"},
   {"category": "protected structures", "input": "رقم الطلب 001234", "options": {"protected_terms": ["001234"]}, "expected": "رقم الطلب 001234"},
   {"category": "protected structures", "input": "3-5 1/2 SAR 12 USD", "expected": "3-5 1/2 SAR 12 USD"},
-  {"category": "mixed text", "input": "نص عَرَبِيّ، API: 95%، رقم الطلب 001.", "expected": "نص عَرَبِيّ، API: خمسة و تسعون بالمائة، رقم الطلب صفر صفر واحد."}
+  {"category": "mixed text", "input": "نص عَرَبِيّ، API: 95%، رقم الطلب 001.", "expected": "نص عَرَبِيّ، API: خمسة و تسعون بالمائة، رقم الطلب صفر صفر واحد."},
+  {"category": "identifiers", "input": "الغرفة رقم 15، رقم 1205.", "expected": "الغرفة رقم خمسة عشر، رقم واحد اثنان صفر خمسة."},
+  {"category": "amounts and quantities", "input": "المبلغ 101000 SAR.", "expected": "المبلغ مائة ألف و ألف ريال سعودي."},
+  {"category": "amounts and quantities", "input": "بين 5 و10 أيام بخصم 15%.", "expected": "بين خمسة وعشرة أيام بخصم خمسة عشر بالمائة."},
+  {"category": "protected structures", "input": "و3-5 كتاب5", "expected": "و3-5 كتاب5"}
 ]

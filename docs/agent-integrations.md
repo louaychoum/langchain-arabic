@@ -1,9 +1,9 @@
 # Coding assistants and LangGraph
 
 The JSON CLI is available from **0.5.0**. Install it with
-`python -m pip install "langchain-arabic>=0.5.0,<0.6"`.
+`python -m pip install "langchain-arabic>=0.6.0,<0.7"`.
 The integration skill and LangGraph example are distributed in the repository;
-use the `v0.5.0` tag for a matching checkout. The `ArabicSpeechNormalizer` Python
+use the `v0.6.0` tag for a matching checkout. The `ArabicSpeechNormalizer` Python
 API remains available from 0.4.0.
 
 ## JSON command

@@ -7,7 +7,14 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Literal, Sequence
 
-from langchain_arabic.numbers import _NUMBER, _PHONE_CUE, convert_numbers_in_text
+from langchain_arabic.dialects import SUPPORTED_DIALECTS, apply_dialect_number_overrides
+from langchain_arabic.numbers import (
+    _NUMBER,
+    _PHONE_CUE,
+    _cue_context,
+    _sub_numbers,
+    convert_numbers_in_text,
+)
 
 DateOrder = Literal["dmy", "mdy"]
 _DIGITS = ("صفر", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة")
@@ -92,21 +99,21 @@ _CURRENCIES = {
     "QAR": "ريال قطري",
 }
 _CUE = re.compile(
-    r"(?<!\w)(?:رقم(?: الطلب| الحجز| الحساب)?|رمز(?: التحقق)?|معرف|"
+    r"(?<!\w)(?:رقم(?P<qualifier> الطلب| الحجز| الحساب)?|رمز(?: التحقق)?|معرف|"
     r"order(?: id)?|booking(?: id)?|otp|id)[ \t]*[:：#]?[ \t]*$",
     re.IGNORECASE,
 )
 # Earlier alternatives claim spans before the generic number rule can touch them.
 _STRUCTURED = (
     r"(?P<protected>https?://[^\s<>]+|www\.[^\s<>]+|"
-    r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|```[\s\S]*?(?:```|\Z)|`[^`\n]*`|"
+    r"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|```[\s\S]*?(?:```|\Z)|`[^`\n]*`|"
     r"(?<!\w)\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?(?!\w)|"
-    r"(?<!\w)(?=[\w./:+-]*[^\W\d_])(?=[\w./:+-]*\d)[\w]+(?:[./:+-][\w]+)*)"
+    r"(?<![\w./:+-])[./:+-]*(?=[\w./:+-]*[^\W\d_])(?=[\w./:+-]*\d)[\w]+(?:[./:+-][\w]+)*)"
     r"|(?P<date>(?<![\w./:+-])\d{1,4}[-/]\d{1,2}[-/]\d{1,4}(?![\w/:+-]|\.\d))"
     r"|(?P<time>(?<![\w./:+-])\d{1,2}:\d{2}(?::\d{2})?(?:[ \t]*[APap][Mm])?(?![\w/:+-]|\.\d))"
     r"|(?P<unknown>(?<!\w)(?:\d+(?:\.\d+)?(?:[\-–—/:]\d+(?:\.\d+)?)+|\d+(?:\.\d+){2,})(?!\w))"
 )
-_COMMA_NUMBER = re.compile(r"[+−-]?\d+(?:[,٬]\d+)+(?:[.٫]\d+)?")
+_COMMA_NUMBER = re.compile(r"[+−-]?(?<!\d)\d+(?:[,٬]\d+)+(?:[.٫]\d+)?")
 
 
 @dataclass(frozen=True)
@@ -162,11 +169,16 @@ class ArabicSpeechNormalizer:
     numeric identifiers. Ambiguous/invalid structures, URLs, emails, inline code
     and alphanumeric codes are retained. ``date_order`` explicitly enables
     day/month/year or month/day/year dates. ``protected_terms`` are exact literal
-    spans that bypass all conversions. This does not infer dialect or noun case.
+    spans that bypass all conversions. ``dialect="gulf"`` applies the Gulf number
+    word substitutions to generated words only. This does not infer noun case.
     """
 
     def __init__(
-        self, *, date_order: DateOrder | None = None, protected_terms: Sequence[str] = ()
+        self,
+        *,
+        date_order: DateOrder | None = None,
+        protected_terms: Sequence[str] = (),
+        dialect: str = "msa",
     ) -> None:
         if date_order not in {None, "dmy", "mdy"}:
             raise ValueError("date_order must be None, 'dmy', or 'mdy'")
@@ -174,7 +186,10 @@ class ArabicSpeechNormalizer:
             not isinstance(term, str) or not term for term in protected_terms
         ):
             raise ValueError("protected_terms must contain nonempty strings")
+        if dialect not in SUPPORTED_DIALECTS:
+            raise ValueError(f"Unsupported dialect {dialect!r}")
         self._date_order = date_order
+        self._dialect = dialect
         terms = sorted(set(protected_terms), key=len, reverse=True)
         literal = "|".join(re.escape(term) for term in terms)
         self._literals = re.compile(literal) if terms else None
@@ -190,15 +205,18 @@ class ArabicSpeechNormalizer:
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         decisions: list[SpeechChange] = []
-        protected = [m.span() for m in self._literals.finditer(text)] if self._literals else []
+        # One flag per character keeps overlap checks linear in the match length.
+        protected = bytearray(len(text))
+        spans = [m.span() for m in self._literals.finditer(text)] if self._literals else []
         # Unsupported comma decimals/grouping must not be split into separate quantities.
-        protected.extend(
-            m.span() for m in _COMMA_NUMBER.finditer(text) if not _NUMBER.fullmatch(m[0])
-        )
+        spans += [m.span() for m in _COMMA_NUMBER.finditer(text) if not _NUMBER.fullmatch(m[0])]
+        for start, end in spans:
+            protected[start:end] = b"\1" * (end - start)
 
         def replace(match: re.Match[str]) -> str:
-            original = match[0]
-            if any(start < match.end() and end > match.start() for start, end in protected):
+            # Matching runs on a clitic-masked copy; report and retain the source text.
+            original = text[match.start() : match.end()]
+            if 1 in protected[match.start() : match.end()]:
                 replacement, kind = original, "protected"
             elif match["date"] is not None:
                 replacement = self._date(original)
@@ -210,9 +228,24 @@ class ArabicSpeechNormalizer:
                 value = match["number"]
                 prefix = (match["prefix"] or "").strip()
                 suffix = (match["suffix"] or "").strip()
-                cue = re.sub(r"[\u064b-\u0652\u0670]", "", text[: match.start()])
-                id_cue = _CUE.search(cue)
-                phone_cue = _PHONE_CUE.search(cue)
+                context, pos = _cue_context(text, match.start())
+                id_cue = _CUE.search(context, pos)
+                phone_cue = _PHONE_CUE.search(context, pos)
+                # Bare "رقم" also numbers rooms and articles ("الغرفة رقم 15" is a
+                # quantity) unless a phone verb precedes it ("اتصل على رقم 911").
+                if (
+                    id_cue
+                    and id_cue[0].startswith("رقم")
+                    and not id_cue["qualifier"]
+                    and value.isdecimal()
+                    and len(value) < 4
+                    and not value.startswith("0")
+                    and not _PHONE_CUE.search(context, pos, id_cue.start())
+                ):
+                    id_cue = None
+                # Service/emergency numbers have 3+ digits; "اتصل 10 مرات" is a count.
+                if phone_cue and value.isdecimal() and len(value) < 3:
+                    phone_cue = None
                 if (id_cue or phone_cue) and not (prefix or suffix):
                     if value.isdecimal():
                         replacement = _digits(value)
@@ -234,24 +267,19 @@ class ArabicSpeechNormalizer:
                     label = _CURRENCIES[prefix or suffix]
                     replacement = convert_numbers_in_text(value, contexts={"plain"}) + " " + label
                     kind = "amount"
-                elif (
-                    re.fullmatch(r"\+?\d{7,15}", value)
-                    and not (prefix or suffix)
-                    and value.startswith("+")
-                ):
-                    replacement = ("زائد " if value.startswith("+") else "") + _digits(
-                        value.lstrip("+")
-                    )
-                    kind = "phone"
+                elif re.fullmatch(r"\+\d{7,15}", value) and not (prefix or suffix):
+                    replacement, kind = "زائد " + _digits(value[1:]), "phone"
                 else:
                     replacement = convert_numbers_in_text(original)
                     kind = "number" if replacement != original else "retained_number"
             else:
                 replacement, kind = original, "protected"
+            if replacement != original:
+                replacement = apply_dialect_number_overrides(replacement, self._dialect)
             decisions.append(SpeechChange(match.start(), match.end(), original, replacement, kind))
             return replacement
 
-        normalized = self._pattern.sub(replace, text)
+        normalized = _sub_numbers(self._pattern, replace, text)
         return SpeechResult(normalized, tuple(decisions))
 
     def _date(self, text: str) -> str:

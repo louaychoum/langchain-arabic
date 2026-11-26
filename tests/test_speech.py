@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -61,6 +62,23 @@ from langchain_arabic import ArabicSpeechNormalizer, ArabicTextOutputParser
             "https://example.com/12?q=34 user1@example.com `95%`",
         ),
         ("3-5 1/2", "3-5 1/2"),
+        ("بين 5 و10 أيام", "بين خمسة وعشرة أيام"),
+        ("دفعت بـ50 SAR", "دفعت بـخمسون ريال سعودي"),
+        ("فيتامين ب12 وك2 ود3", "فيتامين ب12 وك2 ود3"),
+        ("اتصل على رقم 911", "اتصل على رقم تسعة واحد واحد"),
+        ("اتصل 10 مرات", "اتصل عشرة مرات"),
+        ("رقم 123 رقم 1234", "رقم مائة و ثلاثة و عشرون رقم واحد اثنان ثلاثة أربعة"),
+        ("رقم 12.5 رقم 1.5", "رقم 12.5 رقم 1.5"),
+        ("/api/v2/users/123 --level-2 -v2-3", "/api/v2/users/123 --level-2 -v2-3"),
+        ("Xid" + " " * 62 + "1234", "Xid" + " " * 62 + "ألف و مئتان و أربعة و ثلاثون"),
+        ("و2026-11-10", "والعاشر من نوفمبر ألفان و ستة و عشرون"),
+        ("و3-5 كتاب5", "و3-5 كتاب5"),
+        ("الغرفة رقم 15", "الغرفة رقم خمسة عشر"),
+        ("رقم 1205", "رقم واحد اثنان صفر خمسة"),
+        ("رقم 015", "رقم صفر واحد خمسة"),
+        ("رقم الطلب 15", "رقم الطلب واحد خمسة"),
+        ("المبلغ 101000 SAR", "المبلغ مائة ألف و ألف ريال سعودي"),
+        ("```\nو10\n``` ", "```\nو10\n``` "),
     ],
 )
 def test_readings(text, expected):
@@ -176,11 +194,56 @@ def test_lcel_sync_async_batch_and_buffered_streams():
     asyncio.run(check())
 
 
-def test_legacy_parser_behavior_is_unchanged():
-    assert (
-        ArabicTextOutputParser().parse("رقم الطلب 001234.")
-        == "رقم الطلب ألف و مئتان و أربعة و ثلاثون."
+def test_parser_uses_speech_rules_unless_contexts_are_explicit():
+    parser = ArabicTextOutputParser()
+    assert parser.parse("رقم الطلب 001234.") == "رقم الطلب صفر صفر واحد اثنان ثلاثة أربعة."
+    assert parser.parse("هاتفي 0501234567") == (
+        "هاتفي صفر خمسة صفر واحد اثنان ثلاثة أربعة خمسة ستة سبعة"
     )
+    assert parser.parse("12:30") == "الثانية عشرة و ثلاثون دقيقة"
+    legacy = ArabicTextOutputParser(
+        number_contexts={"percentage", "currency_ar", "currency_en", "phone", "plain"}
+    )
+    assert legacy.parse("رقم الطلب 001234.") == "رقم الطلب ألف و مئتان و أربعة و ثلاثون."
+
+
+def test_gulf_dialect_changes_only_generated_words():
+    assert ArabicSpeechNormalizer(dialect="gulf").process("مائة طالب 100%") == (
+        "مائة طالب مية بالمية"
+    )
+    assert ArabicTextOutputParser(dialect="gulf").parse("مائة 100%") == "مائة مية بالمية"
+    assert ArabicSpeechNormalizer(dialect="gulf").process("`مائة` 200") == "`مائة` ميتين"
+    with pytest.raises(ValueError, match="dialect"):
+        ArabicSpeechNormalizer(dialect="levantine")
+
+
+def test_clitic_offsets_point_at_the_number():
+    text = "بين 5 و10"
+    change = ArabicSpeechNormalizer().explain(text).changes[-1]
+    assert (change.start, change.original, change.replacement) == (7, "10", "عشرة")
+    assert text[change.start : change.end] == change.original
+
+
+@pytest.mark.parametrize(
+    ("text", "terms"),
+    [
+        (("نص 12 " * 9200)[:64000], ()),
+        ("a." * 32000, ()),
+        ("a-" * 32000, ()),
+        ("1,2 " * 16000, ()),
+        ("1 " * 32000, ("1",)),
+        ("1" * 65534 + ",x", ()),
+        ("-" * 65534 + "a1", ()),
+    ],
+)
+@pytest.mark.filterwarnings("ignore:Number is outside the supported range")
+def test_input_at_the_cli_limit_stays_linear(text, terms):
+    # Cases took 1.5-4 min before the cue window, token anchors and protection flags, and
+    # take under 1 s now. CPU time with a 10 s limit, because 3 s of wall time flaked on a
+    # busy machine.
+    started = time.process_time()
+    ArabicSpeechNormalizer(protected_terms=terms).process(text)
+    assert time.process_time() - started < 10
 
 
 def test_checked_in_speech_fixtures():

@@ -9,3 +9,4 @@ graft docs-pr
 graft tests
 graft skills
 global-exclude __pycache__ *.py[cod]
+prune benchmarks/tts-runs

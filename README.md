@@ -5,7 +5,7 @@
 [![CI](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml/badge.svg)](https://github.com/louaychoum/langchain-arabic/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Prepare Arabic text for speech with inspectable readings for dates, times and identifiers, plus chosen diacritics and LangChain integration.
+Prepare Arabic text for speech with inspectable readings for dates, times and identifiers, plus chosen diacritics, LangChain integration, and drop-in hooks for Pipecat and LiveKit voice agents.
 
 ```text
 Raw LLM:   هذه شركة تقنية. نسبة النمو: 95%.
@@ -26,6 +26,28 @@ pip install langchain-arabic
 ```
 
 Dictionary and number processing run locally without model downloads or API keys.
+
+## Voice agents (Pipecat, LiveKit)
+
+Read Arabic order numbers, phones, amounts, dates and times correctly in a voice
+agent by adding one TTS text hook. The conversation keeps the original text
+(Pipecat 1.5+; LiveKit unless `use_tts_aligned_transcript=True`).
+
+```python
+from langchain_arabic.voice import livekit_text_transform, pipecat_text_transform
+
+# Pipecat: any TTS service
+tts = ElevenLabsTTSService(..., text_transforms=[("*", pipecat_text_transform())])
+
+# LiveKit Agents: listing transforms replaces the defaults, so keep them
+session = AgentSession(..., tts_text_transforms=[
+    "filter_markdown", "filter_emoji", livekit_text_transform(),
+])
+```
+
+`رقم الطلب 001234، المبلغ 12.50 SAR` is spoken as
+`رقم الطلب صفر صفر واحد اثنان ثلاثة أربعة، المبلغ اثنا عشر فاصلة خمسة صفر ريال سعودي`.
+Neither framework is a dependency. See [setup notes and caveats](docs/voice-agents.md).
 
 ## Quick start with LCEL
 
@@ -54,11 +76,11 @@ it is not currently published in the LangChain docs.
 Run [`examples/langchain_chain.py`](examples/langchain_chain.py) for a prompt,
 chat model, and parser chain with assertions for invocation and streaming.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.5.0/examples/quickstart.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.6.0/examples/quickstart.ipynb)
 
 The [notebook](examples/quickstart.ipynb) installs the package, runs without keys,
 and covers speech preparation, dialect substitutions, decimals, and async use.
-The Colab link uses the `v0.5.0` tag.
+The Colab link uses the `v0.6.0` tag.
 
 ## Speech preparation in 0.4.0
 
@@ -83,9 +105,10 @@ retained spans. Ambiguous dates stay unchanged unless you set `date_order`.
 Use `protected_terms` for values your application must leave untouched.
 
 See [policy, examples and limits](docs/speech-normalization.md) and the
-[key-free LCEL example](examples/speech_chain.py). When combining it with
-`ArabicTextOutputParser` for pronunciation fixes, set `convert_numbers=False`
-on that parser so identifiers reach the normalizer intact. These rules do not
+[key-free LCEL example](examples/speech_chain.py). From 0.6.0,
+`ArabicTextOutputParser` applies these same rules to Arabic numbers by default,
+so a separate normalizer stage is only needed for `explain()` records,
+`date_order` or `protected_terms`. These rules do not
 establish better audio or a Gulf accent; the [targeted audio check](docs/speech-audio-check.md)
 found that raw ElevenLabs input already handled all three examples correctly.
 
@@ -93,11 +116,11 @@ found that raw ElevenLabs input already handled all three examples correctly.
 
 | Component | What it does | Limit |
 |---|---|---|
-| Speech normalizer | Supported dates/times, digit-preserving IDs, decimal amounts, protection and source-offset decisions | Opt-in; bounded rules; ambiguous formats retained; no incremental streaming |
+| Speech normalizer | Supported dates/times, digit-preserving IDs, decimal amounts, protection and source-offset decisions; also the parser's Arabic number step | Bounded rules; ambiguous formats retained; no incremental streaming |
 | Dictionary diacritics | Longest whole-word/phrase match; replaces existing vowel marks | Requires your mappings; no context disambiguation |
 | Mapping input | Dictionary, existing UTF-8 file path, or text with `→`, `->`, tabs, or `:` | First successful delimiter format wins |
-| Numbers | Arabic/English cardinal words, signed decimals, percentages, currency labels | No noun/gender/case agreement or ordinal inference |
-| Arabic digits | Western `0–9` and Eastern `٠–٩`; `.`/`٫` decimals and grouped `,`/`٬` thousands | Not a locale-aware date, version, or identifier parser |
+| Numbers | Arabic/English cardinal words, signed decimals, percentages, currency labels; attached `و`/`ف` or `بـ`/`لـ`/`كـ` before digits | No noun/gender/case agreement or ordinal inference |
+| Arabic digits | Western `0–9` and Eastern `٠–٩`; `.`/`٫` decimals and grouped `,`/`٬` thousands | The context-based converter (`convert_numbers_in_text`) does not parse dates or identifiers |
 | Phones | Digit-by-digit for `+` or preceding phone cues; explicit phone-only context | Automatic detection requires 7–15 ungrouped digits |
 | Dialects | `msa` and four `gulf` number substitutions; supplied dialect dictionaries | No Egyptian/Levantine support or comprehensive Gulf grammar |
 | LangChain | `invoke`, `batch`, async equivalents, sync/async streams | Streams buffer the full answer and yield one final string |
@@ -123,7 +146,10 @@ trailing zeros. Leading minus/plus signs become spoken words. Values beyond
 `num2words`' supported magnitude are retained with a warning.
 
 Available number contexts are `percentage`, `currency_ar`, `currency_en`,
-`phone`, and `plain`. `None` enables all; an empty set disables conversion.
+`phone`, and `plain`. For `convert_numbers_in_text`, `None` enables all; an
+empty set disables conversion. On `ArabicTextOutputParser`, Arabic with
+`number_contexts=None` uses the speech rules; pass explicit contexts (all five
+restore the pre-0.6 behavior) or `language="en"` to use this converter.
 For example, `number_contexts={"percentage"}` leaves unrelated numbers alone.
 When `plain` is enabled, it can convert digits in otherwise disabled contexts
 while retaining their symbols/labels.
@@ -203,7 +229,7 @@ on a small hand-authored set under the [MIT license](LICENSE):
 |---|---:|
 | Dictionary diacritization, 12 pairs / 4 dictionary entries | DER 63.39%; WER 80.77% |
 | Number conversion, 24 hand-checked cases | 24/24 exact matches (100.00%) |
-| Speech normalization, 30 synthetic fixtures including retained controls | 30/30 exact matches |
+| Speech normalization, 34 synthetic fixtures including retained controls | 34/34 exact matches |
 
 These are narrow smoke results. They do not estimate general Arabic accuracy.
 The dictionary overlaps the evaluation set and leaves unknown words unchanged.

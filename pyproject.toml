@@ -5,8 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "langchain-arabic"
 dynamic = ["version"]
-description = "Inspectable Arabic speech preparation, targeted diacritics, number-to-word conversion, and LangChain integration"
+description = "Arabic text normalization for TTS and voice agents: numbers, IDs, dates, diacritics; LangChain, Pipecat and LiveKit hooks"
 readme = "README.md"
+keywords = [
+    "arabic", "tts", "text-to-speech", "text-normalization", "voice-agents",
+    "pipecat", "livekit", "langchain", "tashkeel", "diacritics", "num2words",
+]
 license = "MIT"
 requires-python = ">=3.9"
 authors = [{ name = "Louay Alshoum" }]

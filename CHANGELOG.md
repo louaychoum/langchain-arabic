@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.6.0 — 2026-11-26
+
+### Changed (breaking)
+
+- `ArabicTextOutputParser` now reads Arabic numbers with the `ArabicSpeechNormalizer`
+  rules when `number_contexts` is `None` (the default). Pass all five
+  `number_contexts` (or `language="en"`) for the previous converter. Differences:
+  - Identifiers and phones keep their digits and leading zeros: `هاتفي 0501234567`
+    lost its zero and was read as a wrong cardinal. Bare leading-zero numbers and
+    numbers after `order`/`id`/`otp`/`رمز` cues read digit by digit; `+` phones
+    are read with `زائد`.
+  - ISO dates, 24-hour times and `SAR`/`USD`/`AED`/`QAR` amounts are read.
+  - Ranges, scores, fractions, slash dates (the parser cannot set `date_order`),
+    comma decimals, URLs, emails, code spans and alphanumeric codes are kept as
+    written instead of being converted piecewise (`فاز 3-1` stays as is).
+- Phone cues read digit by digit only for numbers of three or more digits
+  (`اتصل 10 مرات` is a count; `اتصل على 911` stays digit by digit).
+- After a bare `رقم`, whole numbers under four digits without a leading zero read
+  as quantities (`الغرفة رقم 15` → `خمسة عشر`), unless a phone verb precedes it
+  (`اتصل على رقم 911`). Qualified cues (`رقم الطلب`) are unchanged.
+- `convert_numbers_in_text` reads 7–15 digit numbers with a leading zero as phones.
+- `backend="catt"` raises the missing-install `ImportError` when the parser is
+  created instead of on the first parse.
+
+### Fixed
+
+- Work around a num2words 0.5.14 Arabic bug that repeated the scale word for
+  groups 101–901 (`101000` read as `مائة و ألف ألف`, i.e. a wrong value); now
+  `مائة ألف و ألف`, including millions, billions and trillions.
+- Serialize num2words calls: its Arabic converter keeps per-call state on a shared
+  instance, so concurrent `batch()`/threads could return another call's number.
+- Read numbers with an attached conjunction (`و10`, `ف5`) or tatweel-marked
+  preposition (`بـ50`, `وبـ3`); they were left as raw digits. A bare `ب`/`ك`/`ل`
+  before digits stays a code (`فيتامين ب12`), and ranges after a clitic stay protected.
+- Gulf substitutions now also cover the construct form `مئتا` (200, 1,200, 200,000).
+- Keep speech normalization linear in input length. Crafted or number-dense inputs
+  at the CLI's 64 KB limit took 4–60 s (cue rescans of the whole prefix, email/code
+  and comma-number patterns restarting inside tokens, pairwise protected-span
+  checks); they now take well under a second. A cue farther than about 60
+  characters before its number is ignored, and an email or code that starts in the
+  middle of an earlier matched token is no longer protected.
+
+### Added
+
+- `langchain_arabic.voice.pipecat_text_transform()` and `livekit_text_transform()`:
+  TTS text hooks for Pipecat (`text_transforms`) and LiveKit Agents
+  (`tts_text_transforms`) without depending on either framework. The LiveKit hook
+  buffers streamed tokens per sentence and releases text well before the next
+  number early; both fall back to the original text on errors. The context keeps
+  the original text on Pipecat 1.5+ and on LiveKit with the default
+  `use_tts_aligned_transcript=False`. Checked against `pipecat-ai` 1.17.0 and
+  `livekit-agents` 1.8.13. See `docs/voice-agents.md`.
+- `ArabicSpeechNormalizer(dialect="gulf")` applies Gulf number words to generated
+  words only.
+- Compiled dictionary patterns are cached; a 5,000-entry map dropped from about
+  111 ms to 30 ms per parse.
+
 ## 0.5.0 — 2026-11-12
 
 - Add a UTF-8 JSON stdin/stdout command for inspectable speech normalization,

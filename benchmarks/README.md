@@ -1,8 +1,8 @@
 # Reproducible smoke evaluation
 
-For the unreleased speech-input milestone, run
+For the speech-input fixtures, run
 `python benchmarks/evaluate_speech.py --check`. Its
-[30 synthetic-fixture results](speech-results.md) measure exact output strings,
+[34 synthetic-fixture results](speech-results.md) measure exact output strings,
 including intentional retention, separately from diacritization. Regenerate with
 `python benchmarks/evaluate_speech.py --output benchmarks/speech-results.md`.
 See [scope and limitations](../docs/speech-normalization.md).
@@ -63,3 +63,46 @@ The default [results](results.md) contain no CATT measurements. Separate
 CPU installation. Current upstream GPU wheels do not support macOS. The package
 wrapper preserves original text and transfers only vowel marks from predictions
 with matching Arabic base letters.
+
+## TTS round trip (paid, opt-in)
+
+[`tts_roundtrip.py`](tts_roundtrip.py) asks whether numbers survive real speech
+synthesis. Each of the 22 cases in [`data/tts_roundtrip.json`](data/tts_roundtrip.json)
+is spoken twice by each chosen TTS vendor: once from the raw LLM text and once
+from this package's speech text. An ASR transcribes each clip with numbers as
+digits, and a clip counts as correct when every expected value is found (IDs and
+phones digit for digit, amounts by value). Vendor text normalization stays at
+its default in both conditions, so only the input text differs.
+
+```bash
+python benchmarks/tts_roundtrip.py --dry-run  # offline wiring check; scores mean nothing
+
+export ELEVENLABS_API_KEY=... ELEVENLABS_VOICE_ID=...  # an Arabic voice
+export AZURE_SPEECH_KEY=... AZURE_SPEECH_REGION=... AZURE_SPEECH_ENDPOINT=...
+python benchmarks/tts_roundtrip.py --tts elevenlabs,azure --asr scribe,azure \
+    --out benchmarks/tts-runs/2026-11
+```
+
+- Providers: ElevenLabs TTS (`ELEVENLABS_TTS_MODEL`, default
+  `eleven_multilingual_v2`) and Scribe v3 ASR (`numbers_format=digits`); Azure
+  Speech TTS (`AZURE_TTS_VOICE`, default `ar-SA-HamedNeural`) and short-audio
+  ASR (`AZURE_STT_LANGUAGE`, default `ar-SA`, scored on its ITN digit form).
+- Cost: one full run with two TTS vendors and two ASRs makes 88 synthesis calls
+  (about 3,000 characters per vendor) and 176 transcriptions of a few seconds
+  each. Audio and transcripts are cached by text under `--out`, so reruns are
+  free; use a new `--out` after changing voice or model. `tts-runs/` is not
+  committed or packaged.
+- Scoring accepts the following:
+  - digits, whether grouped by spaces or hyphens;
+  - digits followed by `ألف`/`مليون` (`101 ألف`, `مليون و250 ألف`);
+  - amounts given as unit plus subunit (`49 دولار و99 سنت`);
+  - ordinal days and hours, plus `النصف` and `الربع`.
+
+  Other spelled-out forms (`إلا ربع`, `ألفان و26`) count as misses, so read the
+  transcripts in `results.json` for failed cases. The `!ناقص|سالب` check catches
+  an ISO date read as subtraction only when the ASR writes that out in words. A
+  transcript that echoes `2026-11-10` cannot be told apart from a correct reading.
+- Limits: an ASR error looks like a TTS error, so compare both ASRs and listen
+  to clips that fail; one voice and one run per vendor are not a listener study;
+  the cases are synthetic MSA. Publish `report.md` with the exact models, voices
+  and date, and keep the audio for spot checks.

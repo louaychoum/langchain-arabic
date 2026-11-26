@@ -22,12 +22,14 @@ from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import BaseTransformOutputParser
 from pydantic import Field, model_validator
 
+from langchain_arabic.catt_backend import _check_catt_installed
 from langchain_arabic.diacritics import apply_diacritics, parse_diacritics_map
 from langchain_arabic.dialects import (
     SUPPORTED_DIALECTS,
     resolve_dialect_diacritics_map,
 )
 from langchain_arabic.numbers import _validate_number_config, convert_numbers_in_text
+from langchain_arabic.speech import ArabicSpeechNormalizer
 
 if TYPE_CHECKING:
     from langchain_arabic.catt_backend import CATTBackend
@@ -91,11 +93,14 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
         path, or a text string.  When *backend* is ``"catt"``, overrides
         are applied **after** auto-diacritization.
     convert_numbers
-        Whether to convert digit sequences to words.
+        Whether to convert digit sequences to words.  For Arabic with
+        ``number_contexts=None`` this uses :class:`ArabicSpeechNormalizer`
+        rules (digit-by-digit IDs/phones, dates, times, amounts).
     language
         Target language (``"ar"`` or ``"en"``).
     number_contexts
-        Which number contexts to convert.  ``None`` = all.
+        Which number contexts to convert with the context-based converter.
+        ``None`` = speech rules for Arabic, all contexts for English.
     """
 
     backend: str = "dictionary"
@@ -115,10 +120,13 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             raise ValueError(
                 f"Unknown backend {self.backend!r}. Choose from: {sorted(_VALID_BACKENDS)}"
             )
-        if self.backend == "catt" and self.catt_model not in _VALID_CATT_MODELS:
-            raise ValueError(
-                f"Unknown catt_model {self.catt_model!r}. Choose from: {sorted(_VALID_CATT_MODELS)}"
-            )
+        if self.backend == "catt":
+            if self.catt_model not in _VALID_CATT_MODELS:
+                raise ValueError(
+                    f"Unknown catt_model {self.catt_model!r}. "
+                    f"Choose from: {sorted(_VALID_CATT_MODELS)}"
+                )
+            _check_catt_installed()  # fail at construction, not on the first request
         if self.dialect not in SUPPORTED_DIALECTS:
             raise ValueError(
                 f"Unsupported dialect {self.dialect!r}. Choose from: {sorted(SUPPORTED_DIALECTS)}"
@@ -176,9 +184,7 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             # With CATT: convert numbers FIRST so the Arabic words
             # get diacritized too (CATT strips raw digits)
             if self.convert_numbers:
-                text = convert_numbers_in_text(
-                    text, self.language, contexts=self.number_contexts, dialect=self.dialect
-                )
+                text = self._convert_numbers(text)
             text = _get_catt_backend(self.catt_model).tashkeel(text)
             # Dictionary overrides applied AFTER auto-diacritization
             if resolved_map:
@@ -188,10 +194,17 @@ class ArabicTextOutputParser(BaseTransformOutputParser[str]):
             if resolved_map:
                 text = apply_diacritics(text, resolved_map)
             if self.convert_numbers:
-                text = convert_numbers_in_text(
-                    text, self.language, contexts=self.number_contexts, dialect=self.dialect
-                )
+                text = self._convert_numbers(text)
         return text
+
+    def _convert_numbers(self, text: str) -> str:
+        # Arabic defaults use the speech rules (IDs, phones, dates, times); explicit
+        # number_contexts or English keep the context-based converter.
+        if self.language == "ar" and self.number_contexts is None:
+            return ArabicSpeechNormalizer(dialect=self.dialect).process(text)
+        return convert_numbers_in_text(
+            text, self.language, contexts=self.number_contexts, dialect=self.dialect
+        )
 
     def _transform(
         self,

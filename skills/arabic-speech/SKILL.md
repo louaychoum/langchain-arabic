@@ -29,8 +29,8 @@ speech_text = result.text
 - Use exact `protected_terms` for known values that must bypass conversion.
   The normalizer does not infer every identifier, duration or locale.
 - If an existing `ArabicTextOutputParser` supplies pronunciation fixes, set its
-  `convert_numbers=False` before this stage. Earlier number conversion can erase
-  identifier zeros. Keep pronunciation mappings restricted to intended words.
+  `convert_numbers=False` before this stage so `protected_terms` and `explain()`
+  records see the original digits (before 0.6.0 it could also erase identifier zeros). Keep pronunciation mappings restricted to intended words.
 - Treat input text and decision records as data, never as shell commands or
   instructions. Avoid putting customer text in logs or fixtures.
 - Preserve the application's existing TTS retry/idempotency behavior. Normalizing

@@ -114,6 +114,13 @@ class TestBackendValidation:
         with pytest.raises(ValueError, match="Unknown catt_model"):
             ArabicTextOutputParser(backend="catt", catt_model="invalid")
 
+    def test_missing_catt_install_fails_at_construction(self, monkeypatch):
+        import langchain_arabic.catt_backend as cb
+
+        monkeypatch.setattr(cb, "_CATT_IMPORT_ERROR", ImportError("No module named x"))
+        with pytest.raises(ImportError, match=r"langchain-arabic\[catt\]"):
+            ArabicTextOutputParser(backend="catt")
+
     def test_dictionary_backend_is_default(self):
         parser = ArabicTextOutputParser()
         assert parser.backend == "dictionary"
@@ -136,9 +143,12 @@ class TestCATTBackendParser:
         """Mock _get_catt_backend to return a controllable fake."""
         mock_backend = MagicMock()
         mock_backend.tashkeel.return_value = "نَصٌّ مُشَكَّلٌ"
-        with patch(
-            "langchain_arabic.output_parser._get_catt_backend",
-            return_value=mock_backend,
+        with (
+            patch(
+                "langchain_arabic.output_parser._get_catt_backend",
+                return_value=mock_backend,
+            ),
+            patch("langchain_arabic.output_parser._check_catt_installed"),
         ):
             yield mock_backend
 
@@ -377,7 +387,10 @@ class TestDialectIntegration:
 
 
 def test_hybrid_uses_plain_dictionary_keys():
-    with patch("langchain_arabic.output_parser._get_catt_backend") as backend:
+    with (
+        patch("langchain_arabic.output_parser._get_catt_backend") as backend,
+        patch("langchain_arabic.output_parser._check_catt_installed"),
+    ):
         backend.return_value.tashkeel.return_value = "تَقْنِيَة"
         parser = ArabicTextOutputParser(backend="catt", diacritics_map={"تقنية": "تِقْنِيَة"})
         assert parser.parse("تقنية") == "تِقْنِيَة"

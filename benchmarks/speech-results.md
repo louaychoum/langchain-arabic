@@ -8,11 +8,11 @@ These are regression checks, not speech quality, ASR, or general accuracy scores
 |---|---:|
 | dates | 7/7 |
 | times | 6/6 |
-| identifiers | 5/5 |
-| amounts and quantities | 6/6 |
-| protected structures | 5/5 |
+| identifiers | 6/6 |
+| amounts and quantities | 8/8 |
+| protected structures | 6/6 |
 | mixed text | 1/1 |
-| Total | 30/30 |
+| Total | 34/34 |
 
 Reproduce: `python benchmarks/evaluate_speech.py --check`.
 See [scope and limits](../docs/speech-normalization.md) and [data license](data/README.md).
