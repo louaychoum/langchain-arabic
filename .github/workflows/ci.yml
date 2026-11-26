@@ -49,3 +49,17 @@ jobs:
       - run: python -m pip install -e ".[dev]" -r examples/requirements-langgraph.txt
       - run: pytest tests/test_langgraph_example.py
       - run: python examples/langgraph_speech.py
+
+  pipecat-example:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install -e ".[dev]" -r examples/requirements-pipecat.txt
+      - run: pytest tests/test_pipecat_example.py
+      - run: python examples/pipecat_bot.py

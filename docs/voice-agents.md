@@ -25,6 +25,8 @@ tts = ElevenLabsTTSService(  # any Pipecat TTS service
 )
 ```
 
+- [`examples/pipecat_bot.py`](../examples/pipecat_bot.py) runs the hook in a real
+  pipeline without API keys (install `examples/requirements-pipecat.txt`).
 - Before 1.5, with TTS services that report word timestamps (Cartesia,
   ElevenLabs and similar), Pipecat saves the words the TTS spoke, so the context
   stores `أربعة ثمانية اثنان واحد` instead of `4821`. `text_transforms` exists
