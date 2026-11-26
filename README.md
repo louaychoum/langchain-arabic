@@ -48,6 +48,9 @@ session = AgentSession(..., tts_text_transforms=[
 `رقم الطلب 001234، المبلغ 12.50 SAR` is spoken as
 `رقم الطلب صفر صفر واحد اثنان ثلاثة أربعة، المبلغ اثنا عشر فاصلة خمسة صفر ريال سعودي`.
 Neither framework is a dependency. See [setup notes and caveats](docs/voice-agents.md).
+Tested with `pipecat-ai` 1.17.0 and `livekit-agents` 1.8.13. To see the Pipecat hook in
+a real pipeline without API keys (Python 3.11+), run
+`pip install -r examples/requirements-pipecat.txt` and then `python examples/pipecat_bot.py`.
 
 ## Quick start with LCEL
 

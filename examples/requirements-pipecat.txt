@@ -1,0 +1,2 @@
+# Optional example dependency; Python 3.11+. Not required by langchain-arabic.
+pipecat-ai>=1.17,<2

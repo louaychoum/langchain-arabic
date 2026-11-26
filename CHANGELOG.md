@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add a key-free Pipecat example (`examples/pipecat_bot.py`) that runs the hook in a
+  real pipeline, with its own CI job.
+
 ## 0.6.0 — 2026-11-26
 
 ### Changed (breaking)
