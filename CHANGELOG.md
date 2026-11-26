@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (planned 0.6.0)
+## 0.6.0 — 2026-11-26
 
 ### Changed (breaking)
 

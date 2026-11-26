@@ -46,9 +46,9 @@ and tag name `v0.3.1` as a release target:
 ```bash
 git fetch origin master
 git show --stat refs/remotes/origin/master
-# Confirm this is the reviewed 0.5.0 commit and its CI has passed.
-git tag -a v0.5.0 -m "Release 0.5.0" refs/remotes/origin/master
-git push origin refs/tags/v0.5.0
+# Confirm this is the reviewed 0.6.0 commit and its CI has passed.
+git tag -a v0.6.0 -m "Release 0.6.0" refs/remotes/origin/master
+git push origin refs/tags/v0.6.0
 ```
 
 The release workflow reruns CI, verifies tag/version agreement, builds a wheel and

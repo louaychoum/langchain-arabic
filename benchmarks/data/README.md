@@ -15,7 +15,7 @@ is printed in the evaluation script. The references include case endings.
 A later external-corpus evaluation must record the exact source revision,
 license, preprocessing, split and dictionary provenance before publishing scores.
 
-## Unreleased speech-input fixtures
+## Speech-input fixtures
 
 `speech.json` adds 34 repository-authored synthetic fixtures under the same MIT
 license. They cover explicit date orders, invalid/ambiguous controls, 24-hour

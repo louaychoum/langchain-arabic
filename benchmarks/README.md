@@ -1,6 +1,6 @@
 # Reproducible smoke evaluation
 
-For the unreleased speech-input milestone, run
+For the speech-input fixtures, run
 `python benchmarks/evaluate_speech.py --check`. Its
 [34 synthetic-fixture results](speech-results.md) measure exact output strings,
 including intentional retention, separately from diacritization. Regenerate with

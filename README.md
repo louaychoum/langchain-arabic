@@ -76,11 +76,11 @@ it is not currently published in the LangChain docs.
 Run [`examples/langchain_chain.py`](examples/langchain_chain.py) for a prompt,
 chat model, and parser chain with assertions for invocation and streaming.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.5.0/examples/quickstart.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/louaychoum/langchain-arabic/blob/v0.6.0/examples/quickstart.ipynb)
 
 The [notebook](examples/quickstart.ipynb) installs the package, runs without keys,
 and covers speech preparation, dialect substitutions, decimals, and async use.
-The Colab link uses the `v0.5.0` tag.
+The Colab link uses the `v0.6.0` tag.
 
 ## Speech preparation in 0.4.0
 
